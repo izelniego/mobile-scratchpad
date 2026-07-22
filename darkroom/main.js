@@ -84,7 +84,22 @@ const audio = (() => {
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + dur);
   };
+  let swishGain = null;
+  const ensureSwish = () => {
+    if (swishGain || !ctx) return;
+    const len = ctx.sampleRate * 1.5, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.8;
+    swishGain = ctx.createGain(); swishGain.gain.value = 0;
+    src.connect(bp).connect(swishGain).connect(master); src.start();
+  };
   return {
+    setSwish(level) {
+      if (!ctx || !soundOn) return;
+      ensureSwish();
+      swishGain.gain.setTargetAtTime(Math.min(level, 1) * 0.06, ctx.currentTime, 0.08);
+    },
     enable() { ensure(); ctx.resume(); master.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.4); },
     disable() { if (master) master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2); },
     tick() { blip(1150, 0.04, 0.025, 'square'); },
@@ -115,6 +130,7 @@ const roomUniforms = {
   uFog: { value: 0 },
   uPointer: { value: new THREE.Vector2(-9999, -9999) },
   uPointerEnergy: { value: 0 },
+  uAgit: { value: new THREE.Vector3(-9999, -9999, 0) }, // x, y, flow — live chemistry
 };
 
 const roomMat = new THREE.ShaderMaterial({
@@ -129,6 +145,7 @@ const roomMat = new THREE.ShaderMaterial({
     varying vec2 vUv;
     uniform float uTime, uWindowOpen, uFlash, uFog, uPointerEnergy;
     uniform vec2 uRes, uSafelight, uEnlarger, uPointer;
+    uniform vec3 uAgit;
     uniform vec4 uTray, uWindow;
 
     float hash(vec2 p) {
@@ -175,6 +192,13 @@ const roomMat = new THREE.ShaderMaterial({
         col += vec3(1.0, 0.42, 0.30) * (beamGlow + pool) * (1.0 + uFlash * 9.0);
       }
 
+      // live chemistry: agitation rings spread through the room's light
+      if (uAgit.z > 0.01) {
+        float dAgit = distance(px, uAgit.xy);
+        float ring = sin(dAgit * 0.055 - uTime * 6.5) * 0.5 + 0.5;
+        col += vec3(1.0, 0.40, 0.28) * ring * exp(-dAgit / 260.0) * 0.05 * uAgit.z;
+      }
+
       // the window at night (behind the blackout curtain)
       float inWin = rectMask(px, uWindow, 6.0) * uWindowOpen;
       if (inWin > 0.001) {
@@ -185,6 +209,10 @@ const roomMat = new THREE.ShaderMaterial({
         float cloud = noise2(vec2(wuv.x * 3.0 + uTime * 0.05, wuv.y * 4.0));
         night += vec3(0.55, 0.62, 0.72) * smoothstep(0.55, 0.9, cloud)
                * smoothstep(0.9, 0.55, wuv.y) * smoothstep(0.25, 0.6, wuv.y) * 0.30;
+        // the treeline from the source clip, shivering in the static
+        float ridge = 0.68 + 0.10 * noise2(vec2(wuv.x * 6.0, 3.7)) + 0.03 * noise2(vec2(wuv.x * 22.0, 8.1));
+        float trees = smoothstep(ridge, ridge + 0.03, wuv.y);
+        night = mix(night, night * 0.10 + vec3(0.004, 0.010, 0.016), trees);
         col = mix(col, night, inWin);
       }
 
@@ -223,9 +251,15 @@ if (DUST_N) {
   scene.add(dustPoints);
 }
 
+/* adaptive quality: grain is noise — it survives upscaling. When frames run
+   long (software GL, weak GPUs) the room renders smaller and stretches. */
+let quality = innerWidth * innerHeight > 1.05e6 ? 0.7 : 1;
 function resizeRoom() {
   const w = innerWidth, h = innerHeight;
+  renderer.setPixelRatio(dpr * quality);
   renderer.setSize(w, h, false);
+  roomCanvas.style.width = '100%';
+  roomCanvas.style.height = '100%';
   camera.right = w; camera.bottom = h; camera.top = 0; camera.left = 0;
   camera.updateProjectionMatrix();
   roomUniforms.uRes.value.set(w, h);
@@ -233,19 +267,39 @@ function resizeRoom() {
 addEventListener('resize', resizeRoom);
 resizeRoom();
 
+let frameCount = 0, frameTimeAcc = 0, raiseStreak = 0;
+function adaptQuality(dt) {
+  frameCount++; frameTimeAcc += dt;
+  if (frameCount < 40) return;
+  const avgFps = frameCount / frameTimeAcc;
+  frameCount = 0; frameTimeAcc = 0;
+  if (avgFps < 54 && quality > 0.25) {
+    raiseStreak = 0;
+    quality = Math.max(quality * 0.65, 0.25); resizeRoom();
+  } else if (avgFps > 59 && quality < 1 && ++raiseStreak >= 2) {
+    raiseStreak = 0;
+    quality = Math.min(quality * 1.15, 1); resizeRoom();
+  }
+}
+
 /* ── veil grain tiles ────────────────────────────────── */
 
 const grainTiles = [];
-for (let t = 0; t < 4; t++) {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d'), img = g.createImageData(128, 128);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = 120 + Math.random() * 135;
-    img.data[i] = v; img.data[i + 1] = v * 0.92; img.data[i + 2] = v * 0.88;
-    img.data[i + 3] = Math.random() * 70;
+const grainPatterns = [];
+{
+  const pctx = document.createElement('canvas').getContext('2d');
+  for (let t = 0; t < 4; t++) {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'), img = g.createImageData(128, 128);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = 120 + Math.random() * 135;
+      img.data[i] = v; img.data[i + 1] = v * 0.92; img.data[i + 2] = v * 0.88;
+      img.data[i + 3] = Math.random() * 70;
+    }
+    g.putImageData(img, 0, 0);
+    grainTiles.push(c);
+    grainPatterns.push(pctx.createPattern(c, 'repeat'));
   }
-  g.putImageData(img, 0, 0);
-  grainTiles.push(c);
 }
 
 /* ── the print: a develop-able surface ───────────────── */
@@ -346,8 +400,11 @@ class Print {
 
   setAgit(e) {
     const r = this.el.getBoundingClientRect();
-    this.agit.x = clamp((e.clientX - r.left) / r.width, 0, 1);
-    this.agit.y = clamp((e.clientY - r.top) / r.height, 0, 1);
+    const nx = clamp((e.clientX - r.left) / r.width, 0, 1);
+    const ny = clamp((e.clientY - r.top) / r.height, 0, 1);
+    // agitation is chemistry: moving the developer feeds the reaction
+    this.flow = Math.min((this.flow || 0) + Math.hypot(nx - this.agit.x, ny - this.agit.y) * 6, 2.2);
+    this.agit.x = nx; this.agit.y = ny;
   }
 
   resize() {
@@ -371,17 +428,26 @@ class Print {
     if (!holding) { developing.delete(this); this.render(); return; }
 
     this.devTime += dt;
+    this.flow = Math.max((this.flow || 0) - dt * 2.2, 0);
     const gw = this.gw, gh = this.gh;
     const ax = this.agit.x * gw, ay = this.agit.y * gh;
-    const base = (this.autoRun ? 1.4 : 0.32) * (this.opts.speed || 1);
+    const speed = this.opts.speed || 1;
+    // swirling the developer feeds the whole sheet; a still hold barely simmers
+    const agitBoost = 0.55 + Math.min(this.flow, 1.6);
+    const base = (this.autoRun ? 1.4 : 0.30 * agitBoost) * speed;
     const mult = this.fogged ? 1.55 : 1.0;
     let sum = 0, wsum = 0;
     for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
       const i = y * gw + x;
       const dx = (x - ax) / gw, dy = (y - ay) / gh;
-      const gauss = this.autoRun ? 0 : Math.exp(-(dx * dx + dy * dy) / 0.045) * 1.6 * (this.opts.speed || 1);
+      const gauss = this.autoRun ? 0 : Math.exp(-(dx * dx + dy * dy) / 0.045) * 1.5 * agitBoost * speed;
       this.dev[i] = Math.min(this.dev[i] + (base + gauss) * this.weight[i] * mult * dt, 1.8);
       sum += Math.min(this.dev[i], 1) * this.weight[i]; wsum += this.weight[i];
+    }
+    // coach the chemistry once: a long still hold earns a nudge, not a stall
+    if (!this.autoRun && !this.coached && this.devTime > 2.4 && this.flow < 0.12 && this.opts.onStill) {
+      this.coached = true;
+      this.opts.onStill(this);
     }
     this.render();
     if (sum / wsum > 0.93) this.finish();
@@ -389,6 +455,9 @@ class Print {
 
   render() {
     const { gw, gh, img } = this;
+    // rebuild the grain field at half cadence; the liquid shimmer keeps 60fps
+    this.renderTick = (this.renderTick || 0) + 1;
+    if (this.renderTick % 2 === 0 && this.holding) { this.compose(); return; }
     const d = img.data;
     const fog = this.fogged;
     for (let i = 0; i < gw * gh; i++) {
@@ -397,22 +466,39 @@ class Print {
       if (v <= 1) {
         const n = (Math.random() - 0.5) * 10;
         d[o] = (fog ? 46 : 27) + n; d[o + 1] = (fog ? 42 : 12) + n * 0.8; d[o + 2] = (fog ? 39 : 9) + n * 0.7;
-        d[o + 3] = (1 - v) * 250;
+        // the exposure flash prints through: the veil thins and the latent image shows
+        d[o + 3] = (1 - v) * 250 * (this.opts.latent ? 1 - flashLevel * 0.5 : 1);
       } else {
         d[o] = 0; d[o + 1] = 0; d[o + 2] = 0;
         d[o + 3] = Math.min((v - 1) * 0.95, 0.72) * 255;
       }
     }
     this.lowCtx.putImageData(img, 0, 0);
+    this.compose();
+  }
+
+  compose() {
+    const { gw, gh } = this;
     const c = this.ctx, W = this.veil.width, H = this.veil.height;
     c.clearRect(0, 0, W, H);
     c.imageSmoothingEnabled = true;
-    c.drawImage(this.low, 0, 0, W, H);
+    if (this.holding && !reducedMotion) {
+      // developer liquid: the veil sloshes in horizontal bands while agitating
+      const t = performance.now() / 1000;
+      const amp = (1.5 + Math.min(this.flow || 0, 1.6) * 4) * (W / 900);
+      const bands = 10, bh = Math.ceil(gh / bands);
+      for (let b = 0; b < bands; b++) {
+        const sy = b * bh, sh = Math.min(bh, gh - sy);
+        if (sh <= 0) break;
+        const off = Math.sin(t * 5 + b * 1.1) * amp;
+        c.drawImage(this.low, 0, sy, gw, sh, off, sy / gh * H, W, sh / gh * H + 1);
+      }
+    } else {
+      c.drawImage(this.low, 0, 0, W, H);
+    }
     c.globalCompositeOperation = 'source-atop';
     c.globalAlpha = 0.55;
-    const tile = grainTiles[(Math.random() * grainTiles.length) | 0];
-    const pat = c.createPattern(tile, 'repeat');
-    c.fillStyle = pat;
+    c.fillStyle = grainPatterns[(Math.random() * grainPatterns.length) | 0];
     c.save();
     c.translate((Math.random() * 64) | 0, (Math.random() * 64) | 0);
     c.fillRect(-64, -64, W + 128, H + 128);
@@ -423,6 +509,7 @@ class Print {
 
   finish(silent = false) {
     this.complete = true;
+    if (!silent) navigator.vibrate?.(18);
     this.completedAt = performance.now();
     this.autoRun = false;
     developing.delete(this);
@@ -516,7 +603,7 @@ for (const f of FRAMES) {
     circ.setAttribute('viewBox', '0 0 220 150');
     circ.innerHTML = `
       <path d="M28 72 C 24 30, 96 12, 152 22 C 208 32, 206 96, 168 122 C 130 148, 44 140, 30 100 C 24 84 26 78 30 70"/>
-      <text x="158" y="142">${f.pencil}</text>`;
+      <text x="30" y="26" transform="rotate(-4 30 26)">${f.pencil}</text>`;
     el.appendChild(circ);
   }
   sheet.appendChild(el);
@@ -528,6 +615,8 @@ const heroHint = document.getElementById('heroHint');
 const doorLog = document.getElementById('doorLog');
 
 const heroPrint = new Print(document.getElementById('printHero'), {
+  latent: true,
+  onStill: () => { heroHint.textContent = 'SWIRL THE DEVELOPER OVER IT — AGITATION FEEDS THE IMAGE.'; },
   onDeveloped: (p) => {
     heroHint.textContent = p.fixed ? 'FIXED. IT SURVIVES THE LIGHT.' : 'GOOD. NOW FIX IT — OR IT WON’T SURVIVE THE LIGHT.';
   },
@@ -635,6 +724,9 @@ cord.addEventListener('click', () => {
   }
 
   audio.fogThump();
+  navigator.vibrate?.([30, 40, 30]);
+  document.title = 'FOGGED · DARKROOM';
+  setTimeout(() => { document.title = 'IZEL · DARKROOM'; }, 8000);
   whitelight.style.transition = 'opacity 0.12s ease-in';
   whitelight.style.opacity = '1';
   fogTarget = 1;
@@ -676,8 +768,46 @@ console.log(
   'color:#ff3b2a;background:#060403;font-weight:bold;padding:4px 8px;border:1px solid #ff3b2a;',
   '\n' + new Date().toTimeString().slice(0, 5) + ' — safelight on' +
   '\n' + new Date().toTimeString().slice(0, 5) + ' — paper exposed. develop it yourself.' +
-  '\ntip: prints you FIX survive the white light.'
+  '\ntip: prints you FIX survive the white light.' +
+  '\npsst: every print has a negative. press N, twice.'
 );
+
+/* the earned secret: the negative. the whole room inverts into the
+   source clip's cyan night — red room, meet your complement. */
+let lastN = 0;
+addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() !== 'n' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(input|textarea|select)$/i.test(document.activeElement?.tagName || '')) return;
+  const now = performance.now();
+  if (now - lastN < 600) {
+    lastN = 0;
+    const on = document.documentElement.classList.toggle('negative');
+    doorLog.textContent = on
+      ? 'INVERTED · YOU ARE INSIDE THE NEGATIVE NOW'
+      : 'POSITIVE RESTORED · ' + new Date().toTimeString().slice(0, 5);
+    audio.stampThunk();
+  } else {
+    lastN = now;
+  }
+});
+
+/* an authored ending: close the door */
+const doorLine = document.querySelector('.door-line');
+doorLine.setAttribute('role', 'button');
+doorLine.setAttribute('tabindex', '0');
+doorLine.setAttribute('aria-label', 'Close the darkroom door');
+const goodnight = document.createElement('div');
+goodnight.id = 'goodnight';
+goodnight.innerHTML = '<span class="gn-lamp"></span><p>GOODNIGHT.</p><p class="gn-sub">THE SAFELIGHT STAYS ON.</p>';
+document.body.appendChild(goodnight);
+const closeDoor = () => {
+  goodnight.classList.add('shut');
+  audio.stampThunk();
+  setTimeout(() => goodnight.classList.add('lit'), 900);
+};
+doorLine.addEventListener('click', closeDoor);
+doorLine.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeDoor(); } });
+goodnight.addEventListener('click', () => goodnight.classList.remove('shut', 'lit'));
 
 /* ── main loop ───────────────────────────────────────── */
 
@@ -709,6 +839,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   const t = now / 1000;
+  if (!reducedMotion) adaptQuality(dt);
 
   for (const p of [...developing]) p.step(dt);
 
@@ -716,7 +847,15 @@ function frame(now) {
   if (developing.size && soundOn) {
     tickAcc += dt;
     if (tickAcc >= 1) { tickAcc = 0; audio.tick(); }
+    let flow = 0;
+    for (const p of developing) if (p.holding) flow = Math.max(flow, p.flow || 0);
+    audio.setSwish(flow * 0.6);
+  } else if (soundOn) {
+    audio.setSwish(0);
   }
+
+  // the exposure flash prints the latent image through the hero veil
+  if (flashLevel > 0.02 && !heroPrint.complete && !developing.has(heroPrint)) heroPrint.render();
 
   fogLevel += (fogTarget - fogLevel) * Math.min(dt * 6, 1);
   windowOpen += (windowTarget - windowOpen) * Math.min(dt * 4, 1);
@@ -738,6 +877,18 @@ function frame(now) {
   roomUniforms.uFog.value = fogLevel;
   roomUniforms.uPointer.value.set(pointerPx.x, pointerPx.y);
   roomUniforms.uPointerEnergy.value = pointerEnergy;
+
+  // the room feels the developer being worked
+  let agitPrint = null;
+  for (const p of developing) if (p.holding) { agitPrint = p; break; }
+  const agitV = roomUniforms.uAgit.value;
+  if (agitPrint) {
+    const pr = agitPrint.el.getBoundingClientRect();
+    agitV.set(pr.left + agitPrint.agit.x * pr.width, pr.top + agitPrint.agit.y * pr.height,
+      Math.min(agitV.z + dt * 4, 0.35 + Math.min(agitPrint.flow || 0, 1.6)));
+  } else {
+    agitV.z = Math.max(agitV.z - dt * 2.5, 0);
+  }
 
   if (dustPoints) {
     const pos = dustPoints.geometry.attributes.position.array;

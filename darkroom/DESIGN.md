@@ -116,7 +116,7 @@ One continuous vertical bench walked by scrolling: enlarger + developer tray (he
 
 ## Elevation & Depth
 
-No box-shadows anywhere. Depth comes from light rendered in the room shader: the enlarger's dust-filled beam cone, safelight halation (radial glow + top wash), a corner vignette, and the pooled light on the tray. Prints lift off the dark by their paper-white margins, not shadow. The only glow is `drop-shadow` red halation on the timer face and lamp.
+No box-shadows anywhere. Depth comes from light rendered in the room shader: the enlarger's dust-filled beam cone, safelight halation (radial glow + top wash), a corner vignette, and the pooled light on the tray. While a print is being agitated, warm chemistry rings spread through the room's light around it (uAgit uniform) — the room feels the developer being worked. Prints lift off the dark by their paper-white margins, not shadow. The only glow is `drop-shadow` red halation on the timer face and lamp.
 
 ## Shapes
 
