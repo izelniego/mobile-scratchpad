@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--
+DIRECTION CONTRACT
+THESIS: A personal site is a print that doesn't exist until the visitor develops
+it. Refuses the hero-plus-cards portfolio and the cursor-flashlight reveal.
+OWN-WORLD: Safelight red drenching near-black; all reading on silver-gelatin
+grayscale prints with white paper borders; Archivo stamps; live film grain;
+no shadows, depth only from light (beam, halation, vignette).
+STORY: Visitor arrives in a dark lab, is told to agitate, watches IZEL condense
+out of grain, develops a contact sheet of work, flips a print for contact info,
+and learns FIX makes their work permanent.
+FIRST VIEWPORT: Enlarger head top-center, beam onto a blank sheet in a tray,
+timer at its side, instrument rail above. Primary action: hold the sheet.
+FORM: The darkroom (photochemical), candidate 5 of 7, seed key cf727e96.
+
+CONTENT TO REPLACE (owner):
+- Verso "TITLE ______" line: stamp your role.
+- Contact sheet frames 03-05 are AWAITING EXPOSURE placeholders: replace with
+  real work (title + link + small grayscale visual) in the FRAMES config, main.js.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#060403">
+<meta name="description" content="Izel's personal site: a darkroom. Develop it yourself.">
+<title>IZEL · DARKROOM</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23060403'/%3E%3Ccircle cx='16' cy='14' r='7' fill='%23ff3b2a'/%3E%3Crect x='13' y='21' width='6' height='6' fill='%23411008'/%3E%3C/svg%3E">
+<link rel="preload" href="vendor/fonts/archivo-variable-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="vendor/fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="room" aria-hidden="true"></canvas>
+<div id="whitelight" aria-hidden="true"></div>
+
+<header class="rail" aria-label="Darkroom instruments">
+  <div class="rail-lamp" id="safelight" title="Safelight — always on">
+    <span class="lamp-glass"></span>
+    <span class="lamp-label">SAFELIGHT</span>
+  </div>
+  <div class="rail-controls">
+    <button id="soundToggle" class="instrument" aria-pressed="false">SOUND&nbsp;<span class="state">OFF</span></button>
+    <button id="autoToggle" class="instrument" aria-pressed="false">AUTO-DEVELOP&nbsp;<span class="state">OFF</span></button>
+    <button id="cord" class="cord" aria-label="White light pull cord. Do not pull.">
+      <span class="cord-string" aria-hidden="true"></span>
+      <span class="cord-tag">DO&nbsp;NOT</span>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── STATION 1 · DEVELOP ─────────────────────────────── -->
+  <section class="station station-tray" aria-label="Developer tray">
+    <div class="enlarger" aria-hidden="true">
+      <svg viewBox="0 0 160 150" class="enlarger-head">
+        <rect x="118" y="0" width="10" height="150" fill="#180a06"/>
+        <rect x="52" y="26" width="70" height="10" fill="#1c0c07"/>
+        <rect x="38" y="18" width="46" height="34" rx="3" fill="#241009" stroke="#3a1209" stroke-width="2"/>
+        <path d="M46 52 L76 52 L70 78 L52 78 Z" fill="#1a0b06" stroke="#3a1209" stroke-width="2"/>
+        <rect x="50" y="78" width="22" height="12" fill="#2a0f08" stroke="#3a1209" stroke-width="2"/>
+        <circle cx="61" cy="96" r="7" fill="#0c0503" stroke="#57130a" stroke-width="3"/>
+        <rect x="84" y="60" width="18" height="8" rx="4" fill="#7a1408"/>
+      </svg>
+    </div>
+
+    <div class="tray" id="heroTray">
+      <div class="print print-hero" id="printHero" data-print="hero" tabindex="0" role="button"
+           aria-label="Undeveloped print. Hold, or press Enter, to develop.">
+        <div class="print-inner">
+          <h1 class="hero-name">IZEL</h1>
+          <p class="hero-sub">PERSONAL ARCHIVE · PRINTS &amp; EXPERIMENTS</p>
+          <div class="print-meta" aria-hidden="true">
+            <span>EXPOSURE&nbsp;№001&nbsp;·&nbsp;GRADE&nbsp;2&nbsp;·&nbsp;f/8&nbsp;·&nbsp;12&nbsp;s</span>
+            <span class="strip"><i></i><i></i><i></i><i></i><i></i></span>
+          </div>
+        </div>
+        <p class="hint-stamp hint-overlay" id="heroHint">HOLD&nbsp;THE&nbsp;SHEET&nbsp;TO&nbsp;AGITATE</p>
+      </div>
+      <p class="tray-label" aria-hidden="true">DEVELOPER&nbsp;·&nbsp;20°C</p>
+      <div class="timer" id="timer" aria-hidden="true">
+        <svg viewBox="0 0 150 64" class="timer-face">
+          <rect x="1" y="1" width="148" height="62" rx="4" fill="none" stroke="#41120a" stroke-width="2"/>
+          <g id="timerDigits" transform="translate(18,10)"></g>
+        </svg>
+        <span class="timer-label">PROCESS&nbsp;TIMER</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── window + curtain, between stations ─────────────── -->
+  <aside class="window-wall" aria-label="Blackout curtain">
+    <div class="window-frame" id="windowFrame">
+      <div class="window-hole" id="windowHole"></div>
+      <button class="curtain" id="curtain" aria-expanded="false" aria-label="Peek behind the blackout curtain">
+        <span class="curtain-fabric" aria-hidden="true"></span>
+        <span class="curtain-tag">BLACKOUT&nbsp;—&nbsp;KEEP&nbsp;SHUT</span>
+      </button>
+    </div>
+    <p class="window-note" id="windowNote" hidden>it's night. nothing fogs. stay a moment.</p>
+  </aside>
+
+  <!-- ── STATION 2 · CONTACT SHEET ───────────────────────── -->
+  <section class="station station-sheet" aria-label="Contact sheet of work">
+    <h2 class="station-title">CONTACT&nbsp;SHEET&nbsp;№1&nbsp;·&nbsp;WORK</h2>
+    <div class="sheet" id="sheet"><!-- frames injected by main.js --></div>
+  </section>
+
+  <!-- ── STATION 3 · VERSO ───────────────────────────────── -->
+  <section class="station station-verso" aria-label="Back of the print: contact">
+    <h2 class="station-title">VERSO&nbsp;·&nbsp;CONTACT</h2>
+    <div class="print print-verso" id="printVerso" data-print="verso" tabindex="0" role="button"
+         aria-label="Undeveloped print back. Hold, or press Enter, to develop contact details.">
+      <div class="print-inner verso-inner">
+        <p class="stamp stamp-big">PRINTED&nbsp;&amp;&nbsp;DEVELOPED&nbsp;BY</p>
+        <p class="verso-name">IZEL</p>
+        <p class="stamp stamp-line">TITLE&nbsp;<span class="blank-line" aria-label="title not stamped yet">＿＿＿＿＿＿＿</span></p>
+        <div class="verso-stamps">
+          <a class="stamp stamp-link tilt-l" href="mailto:izel84@gmail.com">CONTACT&nbsp;·&nbsp;izel84@gmail.com</a>
+          <a class="stamp stamp-link tilt-r" href="https://github.com/izelniego" rel="me">NEGATIVES&nbsp;·&nbsp;github.com/izelniego</a>
+          <a class="stamp stamp-link" href="https://github.com/izelniego/mobile-scratchpad">LAB&nbsp;·&nbsp;mobile-scratchpad</a>
+        </div>
+        <p class="verso-archival">SILVER&nbsp;GELATIN&nbsp;·&nbsp;DEVELOPED&nbsp;BY&nbsp;VISITOR&nbsp;·&nbsp;<span id="versoDate">2026</span></p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="door">
+    <p class="door-line">CLOSE&nbsp;THE&nbsp;DOOR&nbsp;ON&nbsp;YOUR&nbsp;WAY&nbsp;OUT</p>
+    <p class="door-log" id="doorLog">DARKROOM&nbsp;IN&nbsp;USE&nbsp;·&nbsp;SAFELIGHT&nbsp;ON</p>
+  </footer>
+
+</main>
+
+<noscript>
+  <style>.print .veil{display:none}.latent-hint{display:none}main{opacity:1}</style>
+  <p class="noscript-note">Lights stay on without JavaScript — prints arrive pre-developed.</p>
+</noscript>
+
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>

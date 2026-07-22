@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-22T20:20:00Z",
+  "title": "Design System: The Darkroom",
+  "extensions": {
+    "colorMeta": {
+      "safelight": { "role": "primary", "displayName": "Safelight", "canonical": "#ff3b2a" },
+      "ember": { "role": "primary", "displayName": "Ember", "canonical": "#7a1408" },
+      "total-dark": { "role": "neutral", "displayName": "Total Dark", "canonical": "#060403" },
+      "print-white": { "role": "neutral", "displayName": "Print White", "canonical": "#ece5d8" },
+      "print-paper": { "role": "neutral", "displayName": "Print Paper", "canonical": "#e6ddcb" },
+      "print-silver": { "role": "neutral", "displayName": "Print Silver", "canonical": "#9a938a" },
+      "verso-ink": { "role": "neutral", "displayName": "Verso Ink", "canonical": "#2e2a24" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The developed name on the hero print only." },
+      "label": { "displayName": "Label", "purpose": "Stamps, instrument labels, hints; uppercase, tracked." }
+    },
+    "motion": [
+      { "name": "development", "value": "canvas veil clearing driven by agitation field", "purpose": "The one authored motion: content condenses out of grain under a held pointer." },
+      { "name": "curtain-slide", "value": "transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Blackout curtain reveal." },
+      { "name": "pencil-draw", "value": "stroke-dashoffset 0.9s ease-out", "purpose": "Grease-pencil circle draws itself after a frame develops." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "760px" },
+      { "name": "phone", "value": "430px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Instrument",
+      "kind": "button",
+      "refersTo": "instrument",
+      "description": "Room control on the rail (SOUND, AUTO-DEVELOP).",
+      "html": "<button class=\"ds-instrument\" aria-pressed=\"false\">AUTO-DEVELOP <span>OFF</span></button>",
+      "css": ".ds-instrument { font: 600 0.72rem/1.4 Archivo, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #ff3b2a; background: none; border: 1px solid #7a1408; padding: 7px 11px; cursor: pointer; } .ds-instrument span { color: #9a938a; } .ds-instrument:hover { background: rgba(122,20,8,0.3); } .ds-instrument:focus-visible { outline: 2px solid #ff3b2a; outline-offset: 3px; }"
+    },
+    {
+      "name": "Stamp Link",
+      "kind": "custom",
+      "refersTo": "stamp-link",
+      "description": "Rubber-stamped link on the paper-white verso.",
+      "html": "<a class=\"ds-stamp-link\" href=\"#\">CONTACT · izel84@gmail.com</a>",
+      "css": ".ds-stamp-link { display: inline-block; font: 700 0.8rem/1.5 Archivo, sans-serif; letter-spacing: 0.2em; text-decoration: none; border: 2px solid #2e2a24; padding: 10px 14px; color: #2e2a24; background: #e6ddcb; transform: rotate(-2.5deg); } .ds-stamp-link:hover { background: #2e2a24; color: #e6ddcb; }"
+    },
+    {
+      "name": "Fix Stamp",
+      "kind": "button",
+      "refersTo": "fix-stamp",
+      "description": "Appears on a developed print; fixing makes it permanent across visits.",
+      "html": "<button class=\"ds-fix\">FIX</button>",
+      "css": ".ds-fix { font: 700 0.7rem/1 Archivo, sans-serif; letter-spacing: 0.16em; color: #ff3b2a; background: rgba(6,4,3,0.72); border: 1px solid #ff3b2a; padding: 8px 10px; cursor: pointer; } .ds-fix:hover { background: rgba(122,20,8,0.4); }"
+    },
+    {
+      "name": "Hint Stamp",
+      "kind": "custom",
+      "refersTo": "instrument",
+      "description": "Dashed imperative instruction stamped over the room or a print.",
+      "html": "<p class=\"ds-hint\">HOLD THE SHEET TO AGITATE</p>",
+      "css": ".ds-hint { font: 700 0.78rem/1.4 Archivo, sans-serif; letter-spacing: 0.18em; color: #ff3b2a; border: 1px dashed #7a1408; padding: 10px 14px; background: rgba(6,4,3,0.62); display: inline-block; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Print That Doesn't Exist Yet",
+    "overview": "A photographic darkroom after midnight. Content condenses out of living film grain under the visitor's held attention. The ROOM is drenched safelight red on near-black; the PRINTS are silver-gelatin grayscale on paper white and carry all sustained reading.",
+    "keyCharacteristics": [
+      "Film grain everywhere, never decorative — the substrate images come from",
+      "Interaction is photochemistry: expose, agitate, develop, dodge/burn, fix",
+      "Darkness is physical: white light fogs unfixed prints",
+      "Content authored as photographic artifacts: prints, contact sheets, stamps, grease pencil"
+    ],
+    "rules": [
+      { "name": "The Two Rooms Rule", "body": "Red belongs to the room; grayscale belongs to prints. Sustained reading happens only on prints.", "section": "colors" },
+      { "name": "The Fog Rule", "body": "Pure white appears exactly once — the white-light pull cord — and it is a catastrophe, not a highlight.", "section": "colors" },
+      { "name": "The Stamp Rule", "body": "Uppercase tracked labels are stamped: bordered or underlined, short, imperative.", "section": "typography" }
+    ],
+    "dos": [
+      "Do render all content as photographic artifacts with grain participating",
+      "Do make development progress visible within ~300ms of holding",
+      "Do keep escape hatches: AUTO-DEVELOP, reduced-motion, keyboard develop",
+      "Do keep the room dark in every fallback"
+    ],
+    "donts": [
+      "Don't put paragraphs in red or on raw room ground",
+      "Don't use box-shadows, radii, gradient buttons, or stock chrome",
+      "Don't reveal content by cursor-position flashlight",
+      "Don't fabricate bio facts — placeholders ship in-world as AWAITING EXPOSURE"
+    ]
+  }
+}

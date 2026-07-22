@@ -1,0 +1,353 @@
+/* THE DARKROOM — see DESIGN.md. Room is safelight red; reading lives on prints. */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("vendor/fonts/archivo-variable-latin.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Archivo Black";
+  src: url("vendor/fonts/archivo-black-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --dark: #060403;
+  --safelight: #ff3b2a;
+  --ember: #7a1408;
+  --ember-deep: #41120a;
+  --print-white: #ece5d8;
+  --print-paper: #e6ddcb;
+  --print-silver: #9a938a;
+  --print-ground: #0e0c0a;
+  --ink: #2e2a24;
+  --label: 600 0.72rem/1.4 "Archivo", system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scrollbar-color: var(--ember-deep) var(--dark); }
+
+body {
+  background: var(--dark);
+  color: var(--print-white);
+  font: 400 1rem/1.6 "Archivo", system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--safelight); color: var(--dark); }
+
+#room { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
+
+#whitelight {
+  position: fixed; inset: 0; z-index: 60;
+  background: #f6f2ea; opacity: 0; pointer-events: none;
+}
+
+main { position: relative; z-index: 1; }
+
+/* ── instrument rail ─────────────────────────────────── */
+
+.rail {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 14px clamp(14px, 3vw, 36px) 0; pointer-events: none;
+  transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+}
+.rail.tucked { transform: translateY(-115%); opacity: 0; }
+.rail > * { pointer-events: auto; }
+
+.rail-lamp { display: flex; align-items: center; gap: 10px; }
+.lamp-glass {
+  width: 26px; height: 16px; border-radius: 3px;
+  background: radial-gradient(ellipse at 50% 40%, #ff5f45 0%, #b41f0e 60%, #57130a 100%);
+  box-shadow: 0 0 18px 4px rgba(255, 59, 42, 0.35);
+}
+.lamp-label { font: var(--label); letter-spacing: 0.18em; color: var(--safelight); }
+
+.rail-controls { display: flex; align-items: flex-start; gap: clamp(8px, 1.6vw, 18px); }
+
+.instrument {
+  font: var(--label); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--safelight); background: none;
+  border: 1px solid var(--ember); padding: 7px 11px; cursor: pointer;
+}
+.instrument:hover { background: rgba(122, 20, 8, 0.3); }
+.instrument .state { color: var(--print-silver); }
+.instrument[aria-pressed="true"] .state { color: var(--safelight); }
+
+.cord { background: none; border: none; cursor: pointer; text-align: center; padding: 0 4px; }
+.cord-string { display: block; width: 2px; height: 46px; margin: 0 auto; background: #5c1a10; }
+.cord-tag {
+  display: inline-block; font: var(--label); letter-spacing: 0.18em;
+  color: var(--safelight); border: 1px solid var(--safelight); padding: 5px 9px;
+  transition: transform 0.15s ease-out;
+}
+.cord:hover .cord-tag { background: rgba(122, 20, 8, 0.35); }
+.cord:active .cord-tag { transform: translateY(7px); }
+
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--safelight); outline-offset: 3px;
+}
+
+/* ── stations ────────────────────────────────────────── */
+
+.station { min-height: 100svh; display: grid; place-items: center; padding: 16vh clamp(14px, 4vw, 48px); }
+
+.station-title {
+  font: 700 clamp(0.95rem, 1.6vw, 1.2rem)/1.3 "Archivo", sans-serif;
+  letter-spacing: 0.22em; color: var(--safelight);
+  margin-bottom: clamp(28px, 5vh, 56px); align-self: end;
+}
+
+/* ── prints (the grayscale room) ─────────────────────── */
+
+.print {
+  position: relative;
+  background: var(--print-paper);
+  padding: clamp(10px, 1.4vw, 16px);           /* the unexposed paper margin */
+  cursor: pointer;
+}
+.print .print-inner {
+  position: relative; overflow: hidden;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.58 0 0 0 0 0.55 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--print-ground);
+  height: 100%;
+}
+.veil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; touch-action: pan-y; }
+.veil.done { pointer-events: none; }
+
+.fix-stamp {
+  position: absolute; z-index: 4; top: 4px; right: 4px;
+  font: 700 0.7rem/1 "Archivo", sans-serif; letter-spacing: 0.16em;
+  color: var(--safelight); background: rgba(6, 4, 3, 0.72);
+  border: 1px solid var(--safelight); padding: 8px 10px; cursor: pointer;
+  opacity: 0; transform: scale(0.9); transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+.fix-stamp.show { opacity: 1; transform: none; }
+.fix-stamp.fixed {
+  color: var(--print-white); border-color: var(--print-white);
+  transform: rotate(-7deg); cursor: default;
+}
+.print-verso .fix-stamp { color: var(--ink); border-color: var(--ink); background: rgba(230, 221, 203, 0.85); }
+.print-verso .fix-stamp.fixed { color: #6b635a; border-color: #6b635a; }
+
+.frame:hover .veil:not(.done), .print:hover > .veil:not(.done) { filter: brightness(1.18); }
+
+/* hero print */
+
+.station-tray { position: relative; grid-template-rows: auto auto; row-gap: 0; padding-top: 10vh; padding-bottom: 12vh; }
+
+.enlarger { width: clamp(110px, 13vw, 170px); margin-inline: auto; margin-bottom: clamp(46px, 11vh, 140px); }
+.enlarger-head { display: block; width: 100%; }
+
+.tray { position: relative; width: min(84vw, 900px); }
+.tray::before {
+  content: ""; position: absolute; inset: -14px;
+  border: 2px solid #1f0c07; pointer-events: none;
+}
+.tray-label {
+  position: absolute; left: 0; bottom: -34px;
+  font: var(--label); letter-spacing: 0.2em; color: var(--safelight); opacity: 0.85;
+}
+
+.print-hero { aspect-ratio: 16 / 10; }
+.print-hero .print-inner { display: grid; place-content: center; text-align: center; row-gap: 1.2rem; }
+
+.print-meta {
+  position: absolute; left: 18px; right: 18px; bottom: 14px;
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
+  font: 600 0.62rem/1.4 "Archivo", sans-serif; letter-spacing: 0.16em; color: var(--print-silver);
+}
+.strip { display: inline-flex; }
+.strip i {
+  width: 26px; height: 14px;
+}
+.strip i:nth-child(1) { background: #211e1b; } .strip i:nth-child(2) { background: #3f3a34; }
+.strip i:nth-child(3) { background: #6b645b; } .strip i:nth-child(4) { background: #a49c90; }
+.strip i:nth-child(5) { background: #ded5c4; }
+
+.hero-name {
+  font: 400 clamp(3.5rem, 13vw, 9rem)/0.95 "Archivo Black", "Archivo", sans-serif;
+  letter-spacing: -0.02em; color: var(--print-white);
+}
+.hero-sub {
+  font: 600 clamp(0.68rem, 1.4vw, 0.85rem)/1.7 "Archivo", sans-serif;
+  letter-spacing: 0.2em; color: var(--print-silver);
+  max-width: 90%; margin-inline: auto;
+}
+
+.timer { position: absolute; right: -8px; bottom: -110px; text-align: center; }
+.timer-face { width: clamp(110px, 13vw, 150px); display: block; filter: drop-shadow(0 0 8px rgba(255, 59, 42, 0.25)); }
+.timer-label { font: var(--label); letter-spacing: 0.2em; color: var(--safelight); opacity: 0.85; }
+
+.hint-stamp {
+  font: 700 0.78rem/1.4 "Archivo", sans-serif; letter-spacing: 0.18em;
+  color: var(--safelight); border: 1px dashed var(--ember);
+  padding: 10px 14px; animation: hintPulse 2.6s ease-in-out infinite;
+}
+@keyframes hintPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.hint-overlay {
+  position: absolute; left: 50%; bottom: clamp(16px, 6%, 40px); transform: translateX(-50%);
+  z-index: 5; pointer-events: none;
+  width: max-content; max-width: min(88%, 34rem); text-align: center;
+  background: rgba(6, 4, 3, 0.62); backdrop-filter: blur(2px);
+}
+
+.print.solarized .print-inner { animation: solar 1.3s ease-out; }
+@keyframes solar {
+  0% { filter: none; }
+  18% { filter: invert(1) hue-rotate(180deg); }
+  30% { filter: none; }
+  46% { filter: invert(1) hue-rotate(180deg); }
+  70% { filter: invert(0.25); }
+  100% { filter: none; }
+}
+
+/* ── window / curtain ────────────────────────────────── */
+
+.window-wall { min-height: 72svh; display: grid; place-items: center; place-content: center; row-gap: 18px; padding: 8vh 20px; }
+
+.window-frame {
+  position: relative; width: min(74vw, 520px); aspect-ratio: 4 / 3;
+  border: 10px solid #170b07; outline: 2px solid #0d0604;
+}
+.window-hole { position: absolute; inset: 0; }
+.curtain {
+  position: absolute; inset: 0; border: none; background: none;
+  cursor: pointer; overflow: hidden; text-align: left;
+}
+.curtain-fabric {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, #140a07 0 26px, #0d0605 26px 54px);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.curtain[aria-expanded="true"] .curtain-fabric { transform: translateX(82%); }
+.curtain-tag {
+  position: absolute; left: 12px; bottom: 10px;
+  font: var(--label); letter-spacing: 0.16em; color: var(--safelight);
+}
+.window-note { font: 500 0.85rem/1.5 "Archivo", sans-serif; color: var(--safelight); letter-spacing: 0.06em; }
+
+/* ── contact sheet ───────────────────────────────────── */
+
+.station-sheet { grid-template-rows: auto auto; }
+
+.sheet {
+  width: min(94vw, 1080px);
+  background: var(--print-paper); padding: clamp(12px, 1.6vw, 20px);
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(10px, 1.4vw, 16px);
+}
+
+.frame {
+  position: relative; aspect-ratio: 3 / 2; overflow: hidden;
+  background: var(--print-ground); cursor: pointer;
+}
+.frame::before, .frame::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 7px; z-index: 2;
+  background: repeating-linear-gradient(90deg, transparent 0 10px, rgba(230, 221, 203, 0.16) 10px 16px);
+}
+.frame::before { top: 0; } .frame::after { bottom: 0; }
+
+.frame-visual { position: absolute; inset: 0; display: grid; place-items: center; }
+.frame-visual svg { width: 72%; height: auto; opacity: 0.92; }
+
+.frame-num {
+  position: absolute; top: 10px; left: 10px; z-index: 2;
+  font: 700 0.65rem/1 "Archivo", sans-serif; letter-spacing: 0.18em; color: var(--print-silver);
+}
+.frame-caption {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 26px 12px 12px;
+  background: linear-gradient(transparent, rgba(6, 4, 3, 0.88) 55%);
+  font: 700 0.8rem/1.45 "Archivo", sans-serif; letter-spacing: 0.1em; color: var(--print-white);
+}
+.frame-caption small { display: block; font-weight: 500; letter-spacing: 0.08em; color: var(--print-silver); }
+.frame a.frame-link { position: absolute; inset: 0; z-index: 2; color: transparent; }
+
+.frame.empty .frame-visual { opacity: 0.55; }
+.await-stamp {
+  font: 700 0.72rem/1.4 "Archivo", sans-serif; letter-spacing: 0.24em;
+  color: var(--print-silver); border: 1px solid #38322c; padding: 9px 13px;
+  transform: rotate(-6deg);
+}
+.endroll { display: grid; place-items: center; }
+.endroll span { font: 700 0.72rem/1.4 "Archivo", sans-serif; letter-spacing: 0.24em; color: var(--print-silver); }
+
+.pencil-circle {
+  position: absolute; inset: -4%; z-index: 4; pointer-events: none;
+  opacity: 0;
+}
+.pencil-circle.drawn { opacity: 0.9; }
+.pencil-circle path {
+  fill: none; stroke: #efe8dc; stroke-width: 3.4; stroke-linecap: round;
+  stroke-dasharray: 1000; stroke-dashoffset: 1000;
+}
+.pencil-circle.drawn path { animation: penDraw 0.9s ease-out forwards; }
+.pencil-circle text { fill: #efe8dc; font: 700 15px "Archivo", sans-serif; letter-spacing: 0.12em; }
+@keyframes penDraw { to { stroke-dashoffset: 0; } }
+
+/* ── verso ───────────────────────────────────────────── */
+
+.station-verso { grid-template-rows: auto auto; }
+
+.print-verso { width: min(88vw, 760px); aspect-ratio: 3 / 2; }
+.print-verso .print-inner { background: var(--print-paper); }
+
+.verso-inner {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(10px, 2vh, 18px); text-align: center; padding: 4%;
+}
+.stamp { font: 700 0.8rem/1.5 "Archivo", sans-serif; letter-spacing: 0.2em; color: var(--ink); }
+.stamp-big { border-block: 2px solid var(--ink); padding: 6px 4px; }
+.verso-name { font: 400 clamp(2.2rem, 6vw, 3.6rem)/1 "Archivo Black", sans-serif; color: var(--ink); }
+.stamp-line { color: #6b635a; }
+.blank-line { letter-spacing: 0; }
+
+.verso-stamps { display: flex; flex-wrap: wrap; gap: 14px 18px; justify-content: center; margin-top: 6px; }
+.stamp-link {
+  display: inline-block; text-decoration: none;
+  border: 2px solid var(--ink); padding: 10px 14px; color: var(--ink);
+}
+.stamp-link:hover { background: var(--ink); color: var(--print-paper); }
+.stamp-link:focus-visible { outline-color: var(--ink); }
+.tilt-l { transform: rotate(-2.5deg); }
+.tilt-r { transform: rotate(1.8deg); }
+
+.verso-archival { font: 500 0.7rem/1.5 "Archivo", sans-serif; letter-spacing: 0.14em; color: #6b635a; }
+
+/* ── door / footer ───────────────────────────────────── */
+
+.door { min-height: 46svh; display: grid; place-content: center; text-align: center; row-gap: 12px; padding: 10vh 20px 14vh; }
+.door-line { font: 700 clamp(0.85rem, 2vw, 1.05rem)/1.5 "Archivo", sans-serif; letter-spacing: 0.26em; color: var(--safelight); }
+.door-log { font: var(--label); letter-spacing: 0.2em; color: var(--print-silver); }
+
+.noscript-note { position: relative; z-index: 5; text-align: center; padding: 12px; color: var(--print-white); }
+
+/* ── responsive ──────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .print-hero { aspect-ratio: 4 / 5; }
+  .sheet { grid-template-columns: repeat(2, 1fr); }
+  .station { padding-inline: 12px; }
+  .rail { flex-wrap: wrap; row-gap: 8px; }
+  .instrument { padding: 6px 8px; letter-spacing: 0.08em; }
+  .print-verso { aspect-ratio: auto; min-height: 70svh; }
+  .station-tray { padding-top: 13vh; }
+  .enlarger { margin-bottom: clamp(30px, 7vh, 70px); }
+  .timer { position: static; margin-top: 46px; margin-inline: auto; }
+  .tray-label { bottom: -30px; }
+  .hint-overlay { bottom: 52px; }
+}
+@media (max-width: 430px) {
+  .sheet { grid-template-columns: 1fr; }
+  .frame { aspect-ratio: 16 / 10; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
