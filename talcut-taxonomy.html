@@ -1,0 +1,1200 @@
+<title>Talcut · Taxonomy</title>
+<style>
+  :root{
+    --serif: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+    --bg:#F4F5F2; --surface:#FFFFFF; --surface-2:#FAFBF9;
+    --ink:#1B1F1A; --ink-2:#565E54; --ink-3:#7C8377;
+    --line:#E2E5DD; --line-2:#ECEEE8;
+    --accent:#2E6E4E; --accent-deep:#265C41; --accent-soft:#E9F1EB; --accent-line:#C9DCCF;
+    --on-accent:#FFFFFF;
+    --amber-text:#8A5A16; --amber-bg:#F7EEDC; --amber-line:#E9DCBC;
+    --danger:#A93F2E; --danger-soft:#F8ECE9;
+    --ring:rgba(46,110,78,.28);
+    --toast-bg:#20241F; --toast-fg:#F2F4F0; --toast-link:#8FD0AB;
+    --shadow-sm:0 1px 2px rgba(35,42,34,.05);
+    --shadow-md:0 1px 2px rgba(35,42,34,.05), 0 10px 28px rgba(35,42,34,.08);
+    --shadow-lg:0 4px 12px rgba(20,25,19,.18), 0 24px 60px rgba(20,25,19,.22);
+    --mark:#DCEBDF;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#141713; --surface:#1B1F1A; --surface-2:#181C17;
+      --ink:#E7EAE2; --ink-2:#A7AEA0; --ink-3:#828A79;
+      --line:#2C312A; --line-2:#242923;
+      --accent:#7CC49A; --accent-deep:#93D2AC; --accent-soft:rgba(124,196,154,.13); --accent-line:rgba(124,196,154,.36);
+      --on-accent:#12271B;
+      --amber-text:#DDB86A; --amber-bg:#2B2517; --amber-line:#4A3E22;
+      --danger:#E0785D; --danger-soft:rgba(224,120,93,.14);
+      --ring:rgba(124,196,154,.32);
+      --toast-bg:#E7EAE2; --toast-fg:#20241F; --toast-link:#265C41;
+      --shadow-sm:none;
+      --shadow-md:0 12px 32px rgba(0,0,0,.35);
+      --shadow-lg:0 8px 20px rgba(0,0,0,.5), 0 32px 80px rgba(0,0,0,.5);
+      --mark:rgba(124,196,154,.25);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#F4F5F2; --surface:#FFFFFF; --surface-2:#FAFBF9;
+    --ink:#1B1F1A; --ink-2:#565E54; --ink-3:#7C8377;
+    --line:#E2E5DD; --line-2:#ECEEE8;
+    --accent:#2E6E4E; --accent-deep:#265C41; --accent-soft:#E9F1EB; --accent-line:#C9DCCF;
+    --on-accent:#FFFFFF;
+    --amber-text:#8A5A16; --amber-bg:#F7EEDC; --amber-line:#E9DCBC;
+    --danger:#A93F2E; --danger-soft:#F8ECE9;
+    --ring:rgba(46,110,78,.28);
+    --toast-bg:#20241F; --toast-fg:#F2F4F0; --toast-link:#8FD0AB;
+    --shadow-sm:0 1px 2px rgba(35,42,34,.05);
+    --shadow-md:0 1px 2px rgba(35,42,34,.05), 0 10px 28px rgba(35,42,34,.08);
+    --shadow-lg:0 4px 12px rgba(20,25,19,.18), 0 24px 60px rgba(20,25,19,.22);
+    --mark:#DCEBDF;
+  }
+  :root[data-theme="dark"]{
+    --bg:#141713; --surface:#1B1F1A; --surface-2:#181C17;
+    --ink:#E7EAE2; --ink-2:#A7AEA0; --ink-3:#828A79;
+    --line:#2C312A; --line-2:#242923;
+    --accent:#7CC49A; --accent-deep:#93D2AC; --accent-soft:rgba(124,196,154,.13); --accent-line:rgba(124,196,154,.36);
+    --on-accent:#12271B;
+    --amber-text:#DDB86A; --amber-bg:#2B2517; --amber-line:#4A3E22;
+    --danger:#E0785D; --danger-soft:rgba(224,120,93,.14);
+    --ring:rgba(124,196,154,.32);
+    --toast-bg:#E7EAE2; --toast-fg:#20241F; --toast-link:#265C41;
+    --shadow-sm:none;
+    --shadow-md:0 12px 32px rgba(0,0,0,.35);
+    --shadow-lg:0 8px 20px rgba(0,0,0,.5), 0 32px 80px rgba(0,0,0,.5);
+    --mark:rgba(124,196,154,.25);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+  input,textarea{ font:inherit; color:inherit; }
+  svg{ display:block; flex:none; }
+  mark{ background:var(--mark); color:inherit; border-radius:3px; padding:0 1px; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+
+  .app{ height:100vh; height:100dvh; display:flex; flex-direction:column; }
+
+  /* ── Top bar ─────────────────────────────── */
+  .topbar{
+    flex:none; height:52px; background:var(--surface); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:26px; padding:0 20px;
+  }
+  .wordmark{ display:flex; align-items:center; gap:7px; font-family:var(--serif); font-size:17px; font-weight:600; letter-spacing:.01em; }
+  .wordmark svg{ color:var(--accent); }
+  .topnav{ display:flex; gap:4px; margin-left:6px; }
+  .topnav button{
+    font-size:12.5px; font-weight:500; color:var(--ink-3); padding:5px 10px; border-radius:7px;
+  }
+  .topnav button:hover{ color:var(--ink); background:var(--line-2); }
+  .topnav button[aria-current="page"]{ color:var(--ink); font-weight:600; box-shadow:inset 0 -2px 0 var(--accent); border-radius:7px 7px 2px 2px; }
+  .workspace-chip{ margin-left:auto; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); }
+  .workspace-chip .avatar{
+    width:22px; height:22px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+    display:grid; place-items:center; font-size:11px; font-weight:700; border:1px solid var(--accent-line);
+  }
+
+  /* ── Page header ─────────────────────────── */
+  .page{ flex:1; min-height:0; display:flex; flex-direction:column; width:100%; max-width:1180px; margin:0 auto; padding:0 20px; }
+  .pagehead{ flex:none; display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; padding:22px 2px 16px; }
+  .ph-text h1{ margin:0; font-family:var(--serif); font-size:27px; font-weight:600; line-height:1.15; letter-spacing:.002em; text-wrap:balance; }
+  .ph-text p{ margin:6px 0 0; font-size:13px; color:var(--ink-2); max-width:58ch; }
+  .ph-tools{ margin-left:auto; display:flex; align-items:center; gap:14px; padding-bottom:3px; flex-wrap:wrap; }
+  .stats{ font-family:var(--mono); font-size:11.5px; color:var(--ink-3); white-space:nowrap; }
+  .meter{ display:flex; align-items:center; gap:7px; }
+  .meter .segs{ display:flex; gap:3px; }
+  .meter .segs i{ width:13px; height:5px; border-radius:2px; background:var(--line); }
+  .meter .segs i.on{ background:var(--accent); }
+  .meter .m-label{ font-family:var(--mono); font-size:11.5px; color:var(--ink-3); }
+  .ph-divider{ width:1px; height:22px; background:var(--line); }
+
+  /* ── Buttons & fields ────────────────────── */
+  .btn{
+    display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px;
+    border-radius:8px; border:1px solid transparent; font-size:12.5px; font-weight:600; white-space:nowrap;
+    transition:background .13s ease, border-color .13s ease, color .13s ease;
+  }
+  .btn-primary{ background:var(--accent); color:var(--on-accent); box-shadow:var(--shadow-sm); }
+  .btn-primary:hover{ background:var(--accent-deep); }
+  .btn-outline{ background:var(--surface); border-color:var(--line); color:var(--ink-2); box-shadow:var(--shadow-sm); }
+  .btn-outline:hover{ color:var(--ink); border-color:var(--ink-3); }
+  .btn-ghost{ color:var(--ink-2); }
+  .btn-ghost:hover{ background:var(--line-2); color:var(--ink); }
+  .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+  .icon-btn{
+    width:27px; height:27px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center;
+    color:var(--ink-3); transition:background .13s ease, color .13s ease;
+  }
+  .icon-btn:hover{ background:var(--line-2); color:var(--ink); }
+  .icon-btn.danger:hover{ background:var(--danger-soft); color:var(--danger); }
+
+  .field{
+    width:100%; height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface); font-size:13px; color:var(--ink); appearance:none; -webkit-appearance:none;
+  }
+  input[type="search"]::-webkit-search-cancel-button{ -webkit-appearance:none; }
+  .field::placeholder{ color:var(--ink-3); }
+  .field:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  textarea.field{ height:auto; padding:8px 10px; resize:vertical; min-height:70px; line-height:1.45; }
+
+  /* ── Workspace panes ─────────────────────── */
+  .work{
+    flex:1; min-height:0; display:grid; grid-template-columns:338px minmax(0,1fr);
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    box-shadow:var(--shadow-sm); overflow:hidden; margin-bottom:14px;
+  }
+  .pane-tree{ min-height:0; display:flex; flex-direction:column; background:var(--surface-2); border-right:1px solid var(--line); }
+  .tree-top{ flex:none; padding:12px 12px 8px; }
+  .searchwrap{ position:relative; }
+  .searchwrap svg{ position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--ink-3); pointer-events:none; }
+  .searchwrap input{ padding-left:31px; padding-right:28px; background:var(--surface); }
+  .searchwrap .clear-x{ position:absolute; right:3px; top:50%; transform:translateY(-50%); width:24px; height:24px; }
+  .searchwrap .clear-x[hidden]{ display:none; }
+  .tree-scroll{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:2px 10px 14px; }
+
+  .node-row{
+    display:flex; align-items:center; gap:2px; height:34px; padding:0 4px 0 2px;
+    border-radius:8px; cursor:pointer; position:relative;
+    transition:background .12s ease;
+  }
+  .node-row:hover{ background:var(--line-2); }
+  .node-row.sel{ background:var(--accent-soft); box-shadow:inset 2px 0 0 var(--accent); }
+  .caret{
+    width:22px; height:22px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center;
+    color:var(--ink-3); flex:none;
+  }
+  .caret:hover{ background:var(--line); color:var(--ink); }
+  .caret svg{ transition:transform .15s ease; }
+  .caret.open svg{ transform:rotate(90deg); }
+  .leaf-dot{ width:22px; flex:none; display:inline-flex; align-items:center; justify-content:center; }
+  .leaf-dot::before{ content:""; width:4px; height:4px; border-radius:50%; background:var(--line); }
+  .node-row.sel .leaf-dot::before{ background:var(--accent-line); }
+  .n-name{
+    font-family:var(--serif); font-size:14px; letter-spacing:.005em; min-width:0; flex:0 1 auto;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 3px;
+  }
+  .n-count{
+    flex:none; font-family:var(--mono); font-size:10px; color:var(--ink-3);
+    background:var(--line-2); border-radius:99px; padding:1px 6px; margin-left:4px;
+  }
+  .node-row.sel .n-count{ background:var(--surface); color:var(--accent); }
+  .row-acts{ margin-left:auto; display:flex; gap:1px; }
+  .row-acts .icon-btn{ width:24px; height:24px; }
+  @media (hover:hover){
+    .row-acts{ visibility:hidden; opacity:0; transition:opacity .12s ease; }
+    .node-row:hover .row-acts, .node-row:focus-within .row-acts{ visibility:visible; opacity:1; }
+  }
+  @media (hover:none){ .row-acts .icon-btn{ color:var(--ink-3); } }
+
+  .kids{ display:grid; grid-template-rows:1fr; transition:grid-template-rows .18s ease; }
+  .kids.closed{ grid-template-rows:0fr; }
+  .kids-inner{ overflow:hidden; min-height:0; margin-left:17px; border-left:1px solid var(--line); padding-left:7px; }
+  .rename-input{
+    font-family:var(--serif); font-size:14px; min-width:0; flex:1; height:26px;
+    border:1px solid var(--accent); border-radius:6px; padding:0 6px; background:var(--surface);
+  }
+  .rename-input:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
+
+  .add-root{
+    margin-top:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px;
+    height:34px; border:1px dashed var(--line); border-radius:8px; color:var(--ink-3);
+    font-size:12.5px; font-weight:600; transition:all .13s ease;
+  }
+  .add-root:hover{ color:var(--accent); border-color:var(--accent-line); background:var(--accent-soft); }
+
+  /* ── Detail pane ─────────────────────────── */
+  .pane-detail{ min-height:0; overflow-y:auto; overflow-x:hidden; background:var(--surface); }
+  .detail-inner{ padding:20px 26px 40px; max-width:760px; animation:rise .18s ease; }
+  @keyframes rise{ from{ opacity:0; transform:translateY(4px);} to{ opacity:1; transform:none;} }
+
+  .back-btn{ display:none; margin:0 0 10px -6px; }
+
+  .crumbs{ font-size:12px; color:var(--ink-3); display:flex; flex-wrap:wrap; align-items:center; gap:3px; min-height:18px; }
+  .crumbs button{ color:var(--ink-3); border-radius:4px; padding:1px 3px; }
+  .crumbs button:hover{ color:var(--accent); background:var(--accent-soft); }
+  .crumbs .sep{ color:var(--line); user-select:none; }
+  .crumbs .here{ color:var(--ink-2); font-weight:600; padding:1px 3px; }
+
+  .d-head{ display:flex; align-items:flex-start; gap:12px; margin-top:6px; }
+  .d-title{ min-width:0; flex:1; }
+  .d-name{
+    font-family:var(--serif); font-size:24px; font-weight:600; line-height:1.2; letter-spacing:.002em;
+    margin:0; padding:1px 6px; margin-left:-6px; border-radius:8px; cursor:text; overflow-wrap:anywhere;
+    border:1px solid transparent; display:inline-block; max-width:100%;
+  }
+  .d-name:hover{ background:var(--surface-2); border-color:var(--line); }
+  .d-name-input{
+    font-family:var(--serif); font-size:24px; font-weight:600; line-height:1.2; width:100%;
+    border:1px solid var(--accent); border-radius:8px; padding:1px 6px; margin-left:-6px; background:var(--surface);
+  }
+  .d-name-input:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
+  .d-meta{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .meta-chip{
+    font-size:11px; font-weight:600; color:var(--ink-2); background:var(--surface-2);
+    border:1px solid var(--line); border-radius:99px; padding:2.5px 9px;
+  }
+  .meta-chip.lvl{ font-family:var(--mono); color:var(--accent); background:var(--accent-soft); border-color:var(--accent-line); }
+  .d-actions{ display:flex; gap:6px; flex:none; padding-top:3px; }
+
+  .sec{ margin-top:26px; }
+  .sec-h{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .sec-h h3{
+    margin:0; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3);
+  }
+  .sec-h .cnt{ font-family:var(--mono); font-size:10.5px; color:var(--ink-3); background:var(--line-2); border-radius:99px; padding:1px 7px; }
+  .sec-h .spacer{ flex:1; }
+  .sec-hint{ font-size:12px; color:var(--ink-3); margin:-4px 0 10px; }
+
+  .group{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  .attr{ padding:12px 14px; border-top:1px solid var(--line-2); }
+  .attr:first-child{ border-top:0; }
+  .attr-top{ display:flex; align-items:center; gap:8px; min-height:24px; }
+  .a-name{ font-size:13px; font-weight:650; letter-spacing:.005em; }
+  .a-type{ font-family:var(--mono); font-size:9.5px; letter-spacing:.08em; color:var(--ink-3); text-transform:uppercase; padding-top:1px; }
+  .a-acts{ margin-left:auto; display:flex; gap:1px; }
+  .a-acts .icon-btn{ width:25px; height:25px; }
+  @media (hover:hover){
+    .a-acts{ visibility:hidden; opacity:0; transition:opacity .12s ease; }
+    .attr:hover .a-acts, .attr:focus-within .a-acts{ visibility:visible; opacity:1; }
+  }
+  .a-val{ margin-top:5px; font-size:13px; color:var(--ink-2); line-height:1.5; overflow-wrap:anywhere; }
+  .a-val.long{ white-space:pre-wrap; }
+  .a-val .none{ color:var(--ink-3); font-style:italic; }
+  .tagchips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+  .tagchip{
+    font-size:12px; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line);
+    border-radius:99px; padding:2px 9px;
+  }
+  .chip-ovr, .chip-from{
+    font-size:10.5px; font-weight:650; border-radius:99px; padding:2px 8px; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:4px; transition:border-color .12s ease, color .12s ease;
+  }
+  .chip-ovr{ color:var(--amber-text); background:var(--amber-bg); border:1px solid var(--amber-line); cursor:pointer; }
+  .chip-from{ color:var(--ink-3); background:transparent; border:1px solid var(--line); cursor:pointer; }
+  .chip-from:hover, .chip-ovr:hover{ border-color:var(--accent); color:var(--accent); }
+  .attr.inherited .a-name{ font-weight:600; color:var(--ink-2); }
+  .ovr-btn{ height:24px; padding:0 9px; font-size:11.5px; border-radius:7px; font-weight:650; color:var(--accent); border:1px solid var(--accent-line); background:transparent; }
+  .ovr-btn:hover{ background:var(--accent-soft); }
+  @media (hover:hover){
+    .attr .ovr-btn{ visibility:hidden; opacity:0; transition:opacity .12s ease; }
+    .attr:hover .ovr-btn, .attr:focus-within .ovr-btn{ visibility:visible; opacity:1; }
+  }
+
+  /* ── Attribute editor ────────────────────── */
+  .editor{ padding:14px; background:var(--surface-2); border-top:1px solid var(--line-2); }
+  .editor:first-child{ border-top:0; }
+  .editor .ed-grid{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+  .seg{ display:inline-flex; background:var(--line-2); border-radius:8px; padding:2px; gap:2px; }
+  .seg button{ font-size:11.5px; font-weight:600; color:var(--ink-3); padding:0 10px; height:28px; border-radius:6px; }
+  .seg button.on{ background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm); }
+  .ed-val{ margin-top:8px; }
+  .tagbox{
+    display:flex; flex-wrap:wrap; gap:5px; align-items:center; min-height:36px;
+    border:1px solid var(--line); border-radius:8px; background:var(--surface); padding:5px 7px; cursor:text;
+  }
+  .tagbox:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .tagbox .tagchip button{ margin-left:3px; color:var(--ink-3); vertical-align:-1px; }
+  .tagbox .tagchip button:hover{ color:var(--danger); }
+  .tagbox input{ flex:1; min-width:90px; border:0; background:none; height:24px; font-size:13px; }
+  .tagbox input:focus{ outline:none; }
+  .ed-hint{ margin-top:8px; font-size:12px; color:var(--amber-text); display:flex; gap:6px; align-items:flex-start; }
+  .ed-hint.quiet{ color:var(--ink-3); }
+  .ed-err{ margin-top:8px; font-size:12px; color:var(--danger); font-weight:600; }
+  .sugg{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .sugg button{
+    font-size:11.5px; font-weight:600; color:var(--ink-2); border:1px solid var(--line);
+    background:var(--surface); border-radius:99px; padding:3px 10px;
+  }
+  .sugg button:hover{ color:var(--accent); border-color:var(--accent-line); background:var(--accent-soft); }
+  .ed-foot{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+
+  /* ── Empty states ────────────────────────── */
+  .empty{ text-align:center; padding:46px 22px; }
+  .empty .glyph{
+    width:46px; height:46px; margin:0 auto 12px; border-radius:12px; background:var(--line-2);
+    display:grid; place-items:center; color:var(--ink-3);
+  }
+  .empty h4{ margin:0; font-family:var(--serif); font-size:16px; font-weight:600; }
+  .empty p{ margin:5px auto 0; font-size:12.5px; color:var(--ink-3); max-width:34ch; }
+  .empty .btn{ margin-top:14px; }
+  .empty-mini{ padding:18px 16px; font-size:12.5px; color:var(--ink-3); text-align:center; }
+
+  /* ── Menu / toast / modal ────────────────── */
+  #menuLayer{ position:fixed; inset:0; z-index:80; }
+  #menuLayer[hidden]{ display:none; }
+  .menu{
+    position:fixed; min-width:186px; background:var(--surface); border:1px solid var(--line);
+    border-radius:10px; box-shadow:var(--shadow-md); padding:4px; animation:pop .12s ease;
+  }
+  @keyframes pop{ from{ opacity:0; transform:scale(.97) translateY(-2px);} to{ opacity:1; transform:none;} }
+  .m-item{
+    display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+    font-size:12.5px; font-weight:550; color:var(--ink-2); padding:7px 9px; border-radius:7px;
+  }
+  .m-item svg{ color:var(--ink-3); }
+  .m-item:hover{ background:var(--line-2); color:var(--ink); }
+  .m-item.danger, .m-item.danger svg{ color:var(--danger); }
+  .m-item.danger:hover{ background:var(--danger-soft); }
+  .m-item[disabled]{ opacity:.4; cursor:not-allowed; }
+  .m-sep{ height:1px; background:var(--line-2); margin:4px 6px; }
+
+  #toast{
+    position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(8px);
+    z-index:90; background:var(--toast-bg); color:var(--toast-fg); border-radius:10px; box-shadow:var(--shadow-lg);
+    padding:9px 8px 9px 14px; display:flex; align-items:center; gap:10px; font-size:12.5px;
+    opacity:0; pointer-events:none; transition:opacity .16s ease, transform .16s ease; max-width:min(92vw,480px);
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%); pointer-events:auto; }
+  #toast .t-undo{ color:var(--toast-link); font-weight:700; padding:3px 6px; border-radius:6px; flex:none; }
+  #toast .t-undo:hover{ text-decoration:underline; }
+  #toast .t-x{ color:inherit; opacity:.55; width:24px; height:24px; display:grid; place-items:center; border-radius:6px; flex:none; }
+  #toast .t-x:hover{ opacity:1; }
+
+  #modalLayer{ position:fixed; inset:0; z-index:100; background:rgba(15,18,14,.44); display:grid; place-items:center; padding:18px; }
+  #modalLayer[hidden]{ display:none; }
+  .modal{
+    width:min(600px,100%); max-height:min(78vh,640px); display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-lg);
+    animation:pop .14s ease;
+  }
+  .modal header{ display:flex; align-items:center; gap:10px; padding:15px 16px 4px; }
+  .modal header h3{ margin:0; font-family:var(--serif); font-size:17px; font-weight:600; }
+  .modal header .icon-btn{ margin-left:auto; }
+  .modal .m-sub{ font-size:12.5px; color:var(--ink-3); padding:0 16px 12px; margin:0; }
+  .modal pre{
+    flex:1; min-height:0; overflow:auto; margin:0 16px; padding:12px; background:var(--surface-2);
+    border:1px solid var(--line-2); border-radius:10px; font-family:var(--mono); font-size:11.5px; line-height:1.55;
+  }
+  .modal footer{ display:flex; justify-content:flex-end; gap:8px; padding:13px 16px; }
+
+  .foot{ flex:none; text-align:center; font-size:11.5px; color:var(--ink-3); padding:0 16px 16px; margin:0; }
+
+  /* ── Responsive ──────────────────────────── */
+  @media (max-width:960px){ .work{ grid-template-columns:300px minmax(0,1fr); } }
+  @media (max-width:840px){
+    .topnav{ display:none; }
+    .workspace-chip .ws-name{ display:none; }
+    .page{ padding:0 12px; }
+    .pagehead{ padding:16px 2px 12px; gap:10px; }
+    .ph-text h1{ font-size:22px; }
+    .ph-text p{ font-size:12.5px; }
+    .work{ display:block; position:relative; }
+    .pane-tree{ height:100%; border-right:0; }
+    .pane-detail{
+      position:fixed; inset:0; z-index:60; transform:translateX(103%);
+      transition:transform .22s ease; box-shadow:var(--shadow-lg);
+    }
+    body.detail-open .pane-detail{ transform:none; }
+    .back-btn{ display:inline-flex; }
+    .detail-inner{ padding:14px 16px 46px; }
+    .field, .searchwrap input, .tagbox input{ font-size:16px; }
+    .d-name, .d-name-input{ font-size:21px; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{ transition-duration:0s !important; animation:none !important; }
+  }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="wordmark" id="brand"></div>
+    <nav class="topnav" aria-label="Product">
+      <button type="button">Library</button>
+      <button type="button">Campaigns</button>
+      <button type="button" aria-current="page">Taxonomy</button>
+      <button type="button">Voice</button>
+    </nav>
+    <div class="workspace-chip"><span class="avatar">C</span><span class="ws-name">Coca-Cola Co.</span></div>
+  </header>
+
+  <main class="page">
+    <div class="pagehead">
+      <div class="ph-text">
+        <h1>Brand taxonomy</h1>
+        <p>Structure your catalog up to five levels deep and give every level its own copywriting attributes. Children inherit everything above them — and can override anything.</p>
+      </div>
+      <div class="ph-tools">
+        <span class="stats" id="stats"></span>
+        <span class="meter" id="meter" title="Deepest level in use, out of 5 available">
+          <span class="segs"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="m-label" id="meterLabel"></span>
+        </span>
+        <span class="ph-divider"></span>
+        <button type="button" class="btn btn-outline" id="exportBtn"></button>
+        <button type="button" class="icon-btn" id="headMenuBtn" aria-label="More options"></button>
+      </div>
+    </div>
+
+    <div class="work">
+      <aside class="pane-tree" aria-label="Taxonomy structure">
+        <div class="tree-top">
+          <div class="searchwrap">
+            <input type="search" class="field" id="searchInput" placeholder="Search nodes…" aria-label="Search nodes" autocomplete="off">
+            <button type="button" class="icon-btn clear-x" id="searchClear" aria-label="Clear search" hidden></button>
+          </div>
+        </div>
+        <div class="tree-scroll" id="treeScroll">
+          <div id="treeList" role="tree" aria-label="Taxonomy tree"></div>
+          <div id="treeFoot"></div>
+        </div>
+      </aside>
+      <section class="pane-detail" id="detailPane" aria-label="Node detail">
+        <div id="detailBody"></div>
+      </section>
+    </div>
+
+    <p class="foot">Prototype · edits are saved in this browser · attributes cascade down the tree and can be overridden at any level.</p>
+  </main>
+</div>
+
+<div id="menuLayer" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="modalLayer" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ───────────────────────── constants & icons ───────────────────────── */
+const MAX_DEPTH = 5;
+const STORE_KEY = 'talcut-taxonomy-v1';
+const TYPE_LABEL = { text:'Text', tags:'Tags', long:'Long text' };
+const SUGGESTIONS = [
+  { name:'Tone of voice', type:'tags' },
+  { name:'Audience', type:'text' },
+  { name:'Key message', type:'text' },
+  { name:'Banned words', type:'tags' },
+  { name:'CTA style', type:'text' },
+  { name:'Reading level', type:'text' },
+  { name:'Style rules', type:'long' },
+];
+
+const I = (d, extra) => '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '+(extra||'')+'>'+d+'</svg>';
+const ICON = {
+  plus:   I('<path d="M8 3.2v9.6M3.2 8h9.6"/>'),
+  chev:   I('<path d="M6 3.8 10.2 8 6 12.2"/>'),
+  dots:   '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.4" cy="8" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="12.6" cy="8" r="1.25"/></svg>',
+  trash:  I('<path d="M2.6 4.4h10.8M6.4 2.4h3.2M4.2 4.6l.7 8.4a1 1 0 0 0 1 .9h4.2a1 1 0 0 0 1-.9l.7-8.4M6.5 7v3.8M9.5 7v3.8"/>'),
+  pencil: I('<path d="M11.2 2.6a1.55 1.55 0 0 1 2.2 2.2L5.5 12.7l-3.1.9.9-3.1z"/>'),
+  undo:   I('<path d="M3.2 6.6h6.3a3.2 3.2 0 1 1 0 6.4H7.4M5.9 3.5 2.8 6.6l3.1 3.1"/>'),
+  search: I('<circle cx="7" cy="7" r="4.1"/><path d="M10.1 10.1 13.6 13.6"/>'),
+  x:      I('<path d="M4 4l8 8M12 4l-8 8"/>'),
+  child:  I('<path d="M4 2.8v5.4a2 2 0 0 0 2 2h6.4M9.8 7.6l2.7 2.6-2.7 2.6"/>'),
+  copy:   I('<rect x="5.8" y="5.8" width="7.2" height="7.2" rx="1.4"/><path d="M4 10.2h-.6A1.4 1.4 0 0 1 2 8.8V3.4A1.4 1.4 0 0 1 3.4 2h5.4a1.4 1.4 0 0 1 1.4 1.4V4"/>'),
+  layers: I('<path d="M8 1.8 14 4.8 8 7.8 2 4.8Z M2 8l6 3 6-3M2 11.2l6 3 6-3"/>'),
+  spark:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.2 9.7 6 14.4 7.7 9.7 9.4 8 14.2 6.3 9.4 1.6 7.7 6.3 6Z"/></svg>',
+  down:   I('<path d="M8 2.4v9.2M4.6 8.2 8 11.6l3.4-3.4M3 13.6h10"/>'),
+  back:   I('<path d="M10 3.4 5.4 8 10 12.6"/>'),
+  check:  I('<path d="M3 8.6l3.3 3L13 4.6"/>'),
+};
+
+/* ───────────────────────── state ───────────────────────── */
+const uid = () => (crypto.randomUUID ? crypto.randomUUID().slice(0,13) : 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,7));
+const A = (name,type,value) => ({ id:uid(), name, type, value });
+const N = (name,attrs,children) => ({ id:uid(), name, attrs:attrs||[], children:children||[] });
+
+function seedTree(){
+  return [
+    N('Coca-Cola', [
+      A('Tone of voice','tags',['Optimistic','Timeless','Inclusive']),
+      A('Banned words','tags',['cheap','addictive','guilt-free','medicinal']),
+      A('Reading level','text','Grade 6 — short sentences, everyday words.'),
+      A('Brand promise','long','Every sip is a small moment of real happiness, shared. Copy should feel warm, human and unhurried — never salesy, never ironic.'),
+    ],[
+      N('Coca-Cola Classic', [
+        A('Key message','text','The original taste since 1886 — nothing else comes close.'),
+        A('Sensory language','tags',['crisp','ice-cold','effervescent']),
+      ],[
+        N('12 oz Glass Bottle', [
+          A('Nostalgia cues','text','Lean on the contour bottle and shared memories — diners, road trips, first dates.'),
+        ]),
+      ]),
+      N('Diet Coke', [
+        A('Tone of voice','tags',['Crisp','Confident','A little irreverent']),
+        A('Audience','text','Adults 25–45 who choose taste on their own terms.'),
+      ],[
+        N('Cans', [
+          A('Format notes','text','Lead with portability and ritual — the crack of the can, the first cold sip.'),
+        ],[
+          N('12 oz Sleek Can · 8-Pack', [
+            A('Key message','text','Your fridge’s best-dressed shelf — sleek cans for the week ahead.'),
+          ]),
+        ]),
+        N('2-Liter Bottle', [
+          A('Occasion','text','Sharing and hosting — pitch the pour, not the sip.'),
+          A('CTA style','text','Practical and warm: “Stock up for the weekend.”'),
+        ]),
+      ]),
+      N('Coca-Cola Zero Sugar', [
+        A('Key message','text','All the Coca-Cola taste, zero sugar — lead with taste, prove with zero.'),
+        A('Audience','text','Flavor-first switchers who reject the word “diet”.'),
+      ]),
+    ]),
+  ];
+}
+
+let state = { tree:[], selectedId:null };
+let expanded = new Set();
+const ui = { editor:null, renamingId:null, editName:false, search:'', focusAfter:null };
+
+function allIds(nodes){ const out=[]; (function rec(ns){ ns.forEach(n=>{ out.push(n.id); rec(n.children); }); })(nodes); return out; }
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      if(p && Array.isArray(p.tree)){
+        state.tree = p.tree; state.selectedId = p.selectedId || null;
+        expanded = new Set(Array.isArray(p.expanded) ? p.expanded : allIds(state.tree));
+        return;
+      }
+    }
+  }catch(e){}
+  state.tree = seedTree();
+  expanded = new Set(allIds(state.tree));
+  state.selectedId = state.tree[0] ? state.tree[0].id : null;
+}
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({ v:1, tree:state.tree, selectedId:state.selectedId, expanded:[...expanded] })); }catch(e){}
+}
+
+/* ───────────────────────── tree helpers ───────────────────────── */
+function* walk(nodes, depth, parent){
+  depth = depth||1; parent = parent||null;
+  for(const n of nodes){ yield {node:n, depth, parent}; yield* walk(n.children, depth+1, n); }
+}
+function findCtx(id){ if(!id) return null; for(const c of walk(state.tree)) if(c.node.id===id) return c; return null; }
+function pathTo(id){
+  const out=[];
+  (function rec(nodes, acc){
+    for(const n of nodes){
+      const na = acc.concat([n]);
+      if(n.id===id){ out.push(...na); return true; }
+      if(rec(n.children, na)) return true;
+    }
+    return false;
+  })(state.tree, []);
+  return out;
+}
+function siblingsOf(id){ const c = findCtx(id); return c ? (c.parent ? c.parent.children : state.tree) : null; }
+function subtreeCount(n){ let k=0; for(const _ of walk([n])) k++; return k; }
+function deepestDepth(){ let d=0; for(const c of walk(state.tree)) d=Math.max(d,c.depth); return d; }
+function totalAttrs(){ let k=0; for(const c of walk(state.tree)) k+=c.node.attrs.length; return k; }
+function nodeCount(){ let k=0; for(const _ of walk(state.tree)) k++; return k; }
+
+function inheritedMapFor(node){
+  const path = pathTo(node.id); const anc = path.slice(0,-1);
+  const map = new Map();
+  anc.forEach(a => a.attrs.forEach(at => map.set(at.name.toLowerCase(), { attr:at, from:a })));
+  return map;
+}
+function attrView(node){
+  const inh = inheritedMapFor(node);
+  const local = node.attrs.map(at => {
+    const o = inh.get(at.name.toLowerCase());
+    return { attr:at, overrides:o ? o.from : null, originalValue:o ? o.attr.value : null };
+  });
+  const localNames = new Set(node.attrs.map(a => a.name.toLowerCase()));
+  const inherited = [...inh.values()].filter(x => !localNames.has(x.attr.name.toLowerCase()));
+  return { local, inherited };
+}
+
+/* ───────────────────────── snapshots & toast ───────────────────────── */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function snapshot(){ return JSON.stringify({ tree:state.tree, selectedId:state.selectedId, expanded:[...expanded] }); }
+function restore(snap){
+  const p = JSON.parse(snap);
+  state.tree = p.tree; state.selectedId = p.selectedId; expanded = new Set(p.expanded);
+  ui.editor=null; ui.renamingId=null; ui.editName=false;
+  persist(); render();
+}
+
+let toastTimer = null;
+function toast(msg, undoFn){
+  const el = $('#toast');
+  clearTimeout(toastTimer);
+  el.innerHTML = '<span>'+esc(msg)+'</span>'
+    + (undoFn ? '<button type="button" class="t-undo">Undo</button>' : '')
+    + '<button type="button" class="t-x" aria-label="Dismiss">'+ICON.x+'</button>';
+  el.classList.add('show');
+  const hide = () => { el.classList.remove('show'); };
+  if(undoFn) el.querySelector('.t-undo').onclick = () => { hide(); undoFn(); };
+  el.querySelector('.t-x').onclick = hide;
+  toastTimer = setTimeout(hide, 6500);
+}
+
+/* ───────────────────────── mutations ───────────────────────── */
+function commit(){ persist(); render(); }
+
+function selectNode(id, openMobile){
+  state.selectedId = id;
+  ui.editor=null; ui.editName=false;
+  if(openMobile !== false) document.body.classList.add('detail-open');
+  pathTo(id).slice(0,-1).forEach(n => expanded.add(n.id));
+  commit();
+}
+function addChild(parentId){
+  const node = { id:uid(), name:'Untitled node', attrs:[], children:[] };
+  if(parentId){
+    const ctx = findCtx(parentId);
+    if(!ctx || ctx.depth >= MAX_DEPTH) return;
+    ctx.node.children.push(node);
+    expanded.add(parentId);
+  }else{
+    state.tree.push(node);
+  }
+  state.selectedId = node.id;
+  ui.editor=null; ui.editName=true; ui.focusAfter='detail-name';
+  document.body.classList.add('detail-open');
+  commit();
+}
+function renameNode(id, name){
+  const ctx = findCtx(id); if(!ctx) return;
+  const v = name.trim(); if(v) ctx.node.name = v.slice(0,80);
+  ui.renamingId=null; ui.editName=false;
+  commit();
+}
+function deleteNode(id){
+  const ctx = findCtx(id); if(!ctx) return;
+  const snap = snapshot();
+  const sibs = ctx.parent ? ctx.parent.children : state.tree;
+  const n = subtreeCount(ctx.node);
+  sibs.splice(sibs.indexOf(ctx.node), 1);
+  if(!findCtx(state.selectedId)) state.selectedId = ctx.parent ? ctx.parent.id : (state.tree[0] ? state.tree[0].id : null);
+  if(!state.selectedId) document.body.classList.remove('detail-open');
+  commit();
+  toast('Deleted “'+ctx.node.name+'”' + (n>1 ? ' and '+(n-1)+' nested node'+(n>2?'s':'') : ''), () => restore(snap));
+}
+function duplicateNode(id){
+  const ctx = findCtx(id); if(!ctx) return;
+  const clone = JSON.parse(JSON.stringify(ctx.node));
+  (function reid(n){ n.id=uid(); n.attrs.forEach(a=>a.id=uid()); n.children.forEach(reid); })(clone);
+  clone.name = ctx.node.name + ' copy';
+  const sibs = ctx.parent ? ctx.parent.children : state.tree;
+  sibs.splice(sibs.indexOf(ctx.node)+1, 0, clone);
+  for(const c of walk([clone])) if(c.node.children.length) expanded.add(c.node.id);
+  state.selectedId = clone.id;
+  commit();
+}
+function saveAttr(nodeId, attrId, data){
+  const ctx = findCtx(nodeId); if(!ctx) return;
+  if(attrId){
+    const at = ctx.node.attrs.find(a=>a.id===attrId);
+    if(at){ at.name=data.name; at.type=data.type; at.value=data.value; }
+  }else{
+    ctx.node.attrs.push({ id:uid(), name:data.name, type:data.type, value:data.value });
+  }
+  ui.editor=null;
+  commit();
+}
+function deleteAttr(nodeId, attrId, isRevert){
+  const ctx = findCtx(nodeId); if(!ctx) return;
+  const at = ctx.node.attrs.find(a=>a.id===attrId); if(!at) return;
+  const snap = snapshot();
+  ctx.node.attrs = ctx.node.attrs.filter(a=>a.id!==attrId);
+  commit();
+  toast(isRevert ? '“'+at.name+'” reverted to the inherited value' : 'Removed “'+at.name+'”', () => restore(snap));
+}
+function resetSeed(){
+  const snap = snapshot();
+  state.tree = seedTree(); expanded = new Set(allIds(state.tree));
+  state.selectedId = state.tree[0].id; ui.editor=null;
+  commit();
+  toast('Example taxonomy restored', () => restore(snap));
+}
+function clearAll(){
+  const snap = snapshot();
+  state.tree = []; expanded = new Set(); state.selectedId = null; ui.editor=null;
+  document.body.classList.remove('detail-open');
+  commit();
+  toast('Taxonomy cleared', () => restore(snap));
+}
+
+/* ───────────────────────── render: header ───────────────────────── */
+function renderHeader(){
+  const d = deepestDepth();
+  $('#stats').textContent = nodeCount()+' nodes · '+totalAttrs()+' attributes';
+  $('#meterLabel').textContent = d+'/'+MAX_DEPTH;
+  [...$('#meter').querySelectorAll('.segs i')].forEach((el,i)=> el.classList.toggle('on', i < d));
+  $('#meter').setAttribute('aria-label','Depth in use: '+d+' of '+MAX_DEPTH+' levels');
+}
+
+/* ───────────────────────── render: tree ───────────────────────── */
+function highlightName(name, term){
+  if(!term) return esc(name);
+  const i = name.toLowerCase().indexOf(term);
+  if(i<0) return esc(name);
+  return esc(name.slice(0,i)) + '<mark>' + esc(name.slice(i, i+term.length)) + '</mark>' + esc(name.slice(i+term.length));
+}
+function renderTree(){
+  const term = ui.search.trim().toLowerCase();
+  let visible = null;
+  if(term){
+    visible = new Set();
+    for(const c of walk(state.tree)){
+      if(c.node.name.toLowerCase().includes(term)) pathTo(c.node.id).forEach(n=>visible.add(n.id));
+    }
+  }
+  const rowHtml = (n, depth) => {
+    const hasKids = n.children.length>0;
+    const open = term ? true : expanded.has(n.id);
+    const sel = n.id===state.selectedId;
+    const kids = n.children.filter(k => !visible || visible.has(k.id));
+    const caret = hasKids
+      ? '<button type="button" class="caret'+(open?' open':'')+'" data-act="toggle" aria-label="'+(open?'Collapse':'Expand')+' '+esc(n.name)+'" aria-expanded="'+open+'">'+ICON.chev+'</button>'
+      : '<span class="leaf-dot" aria-hidden="true"></span>';
+    const nameHtml = ui.renamingId===n.id
+      ? '<input class="rename-input" data-rename="'+n.id+'" value="'+esc(n.name)+'" maxlength="80" aria-label="Rename node">'
+      : '<span class="n-name">'+highlightName(n.name, term)+'</span>';
+    const count = n.attrs.length ? '<span class="n-count" title="'+n.attrs.length+' attribute'+(n.attrs.length>1?'s':'')+' defined here">'+n.attrs.length+'</span>' : '';
+    const acts = '<span class="row-acts">'
+      + (depth<MAX_DEPTH ? '<button type="button" class="icon-btn" data-act="add" title="Add child" aria-label="Add child to '+esc(n.name)+'">'+ICON.plus+'</button>' : '')
+      + '<button type="button" class="icon-btn" data-act="menu" title="More" aria-label="More actions for '+esc(n.name)+'">'+ICON.dots+'</button></span>';
+    let html = '<div class="branch">'
+      + '<div class="node-row'+(sel?' sel':'')+'" role="treeitem" aria-level="'+depth+'" aria-selected="'+sel+'"'
+      + (hasKids ? ' aria-expanded="'+open+'"' : '') + ' data-node="'+n.id+'">'
+      + caret + nameHtml + count + acts + '</div>';
+    if(hasKids){
+      html += '<div class="kids'+(open?'':' closed')+'" role="group"><div class="kids-inner">'
+        + kids.map(k=>rowHtml(k, depth+1)).join('') + '</div></div>';
+    }
+    return html + '</div>';
+  };
+
+  const roots = state.tree.filter(n => !visible || visible.has(n.id));
+  let html = roots.map(n=>rowHtml(n,1)).join('');
+  if(term && !roots.length) html = '<div class="empty-mini">No nodes match “'+esc(ui.search.trim())+'”.</div>';
+  if(!term && !state.tree.length){
+    html = '<div class="empty"><div class="glyph">'+ICON.layers+'</div><h4>No taxonomy yet</h4>'
+      + '<p>Create a root node for a brand or product line to get started.</p>'
+      + '<button type="button" class="btn btn-primary" data-act="add-root">'+ICON.plus+'New root node</button></div>';
+  }
+  $('#treeList').innerHTML = html;
+  $('#treeFoot').innerHTML = (!term && state.tree.length)
+    ? '<button type="button" class="add-root" data-act="add-root">'+ICON.plus+'New root node</button>' : '';
+
+  const ri = $('#treeList .rename-input');
+  if(ri){
+    ri.focus(); ri.select();
+    let done=false;
+    const fin = ok => { if(done) return; done=true; ok ? renameNode(ri.dataset.rename, ri.value) : (ui.renamingId=null, render()); };
+    ri.addEventListener('keydown', e=>{ if(e.key==='Enter') fin(true); if(e.key==='Escape') fin(false); });
+    ri.addEventListener('blur', ()=>fin(true));
+  }
+}
+
+/* ───────────────────────── render: attribute bits ───────────────────────── */
+function valueHtml(at){
+  if(at.type==='tags'){
+    const tags = Array.isArray(at.value) ? at.value : [];
+    return tags.length ? '<div class="tagchips">'+tags.map(t=>'<span class="tagchip">'+esc(t)+'</span>').join('')+'</div>'
+                       : '<div class="a-val"><span class="none">No tags yet</span></div>';
+  }
+  const v = String(at.value||'').trim();
+  return '<div class="a-val'+(at.type==='long'?' long':'')+'">'+(v ? esc(v) : '<span class="none">No value yet</span>')+'</div>';
+}
+function previewOf(v, type){
+  const s = type==='tags' ? (Array.isArray(v)?v.join(', '):'') : String(v||'');
+  return s.length>90 ? s.slice(0,90)+'…' : s;
+}
+
+function localRow(nodeId, item){
+  const at = item.attr;
+  const ovr = item.overrides
+    ? '<button type="button" class="chip-ovr" data-act="goto" data-target="'+item.overrides.id+'" title="Overrides “'+esc(previewOf(item.originalValue, at.type))+'” — go to '+esc(item.overrides.name)+'">'
+      + 'overrides '+esc(item.overrides.name)+'</button>'
+    : '';
+  const revert = item.overrides
+    ? '<button type="button" class="icon-btn" data-act="attr-revert" data-attr="'+at.id+'" title="Revert to inherited value">'+ICON.undo+'</button>' : '';
+  return '<div class="attr"><div class="attr-top">'
+    + '<span class="a-name">'+esc(at.name)+'</span><span class="a-type">'+TYPE_LABEL[at.type]+'</span>'+ovr
+    + '<span class="a-acts">'+revert
+    + '<button type="button" class="icon-btn" data-act="attr-edit" data-attr="'+at.id+'" title="Edit" aria-label="Edit '+esc(at.name)+'">'+ICON.pencil+'</button>'
+    + '<button type="button" class="icon-btn danger" data-act="attr-del" data-attr="'+at.id+'" title="Remove" aria-label="Remove '+esc(at.name)+'">'+ICON.trash+'</button>'
+    + '</span></div>'+valueHtml(at)+'</div>';
+}
+function inheritedRow(item){
+  const at = item.attr;
+  return '<div class="attr inherited"><div class="attr-top">'
+    + '<span class="a-name">'+esc(at.name)+'</span><span class="a-type">'+TYPE_LABEL[at.type]+'</span>'
+    + '<button type="button" class="chip-from" data-act="goto" data-target="'+item.from.id+'" title="Defined on '+esc(item.from.name)+' — click to open">from '+esc(item.from.name)+'</button>'
+    + '<span class="a-acts"><button type="button" class="ovr-btn" data-act="attr-override" data-attr="'+at.id+'" data-src="'+item.from.id+'">Override here</button></span>'
+    + '</div>'+valueHtml(at)+'</div>';
+}
+
+function editorHtml(node){
+  const ed = ui.editor;
+  const inEdit = !!ed.attrId;
+  const title = ed.mode==='override' ? 'Override here' : (inEdit ? 'Save changes' : 'Add attribute');
+  const localNames = new Set(node.attrs.filter(a=>a.id!==ed.attrId).map(a=>a.name.toLowerCase()));
+  const suggs = (!inEdit && ed.mode!=='override')
+    ? SUGGESTIONS.filter(s=>!localNames.has(s.name.toLowerCase()))
+    : [];
+  return '<div class="editor" id="attrEditor">'
+    + '<div class="ed-grid">'
+    +   '<input class="field" id="edName" placeholder="Attribute name — e.g. Tone of voice" maxlength="60" value="'+esc(ed.draft.name)+'" aria-label="Attribute name">'
+    +   '<div class="seg" role="group" aria-label="Attribute type">'
+    +     ['text','tags','long'].map(t=>'<button type="button" data-type="'+t+'" class="'+(ed.draft.type===t?'on':'')+'">'+TYPE_LABEL[t]+'</button>').join('')
+    +   '</div>'
+    + '</div>'
+    + (suggs.length ? '<div class="sugg" id="edSugg">'+suggs.map(s=>'<button type="button" data-sn="'+esc(s.name)+'" data-st="'+s.type+'">'+esc(s.name)+'</button>').join('')+'</div>' : '')
+    + '<div class="ed-val" id="edVal"></div>'
+    + '<div class="ed-hint" id="edHint" hidden></div>'
+    + '<div class="ed-err" id="edErr" hidden></div>'
+    + '<div class="ed-foot">'
+    +   '<button type="button" class="btn btn-ghost" id="edCancel">Cancel</button>'
+    +   '<button type="button" class="btn btn-primary" id="edSave">'+ICON.check+title+'</button>'
+    + '</div></div>';
+}
+
+function bindEditor(node){
+  const ed = ui.editor;
+  const root = $('#attrEditor'); if(!root) return;
+  const nameEl = $('#edName'), valZone = $('#edVal'), hintEl = $('#edHint'), errEl = $('#edErr');
+  const inh = inheritedMapFor(node);
+  let type = ed.draft.type;
+  let tags = Array.isArray(ed.draft.value) ? ed.draft.value.slice() : (ed.draft.type==='tags' ? [] : []);
+  let text = typeof ed.draft.value==='string' ? ed.draft.value : '';
+
+  function currentText(){ const el = valZone.querySelector('[data-vtext]'); return el ? el.value : text; }
+  function paintValue(){
+    if(type==='tags'){
+      valZone.innerHTML = '<div class="tagbox" id="tagbox">'
+        + tags.map((t,i)=>'<span class="tagchip">'+esc(t)+'<button type="button" data-rm="'+i+'" aria-label="Remove '+esc(t)+'">&times;</button></span>').join('')
+        + '<input id="tagInput" placeholder="'+(tags.length?'Add another…':'Type a tag, press Enter…')+'" maxlength="40" aria-label="Add tag"></div>';
+      const box = $('#tagbox'), inp = $('#tagInput');
+      const addTag = raw => {
+        raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(t=>{
+          if(!tags.some(x=>x.toLowerCase()===t.toLowerCase())) tags.push(t);
+        });
+        paintValue(); $('#tagInput').focus();
+      };
+      box.addEventListener('mousedown', e=>{ if(e.target===box){ e.preventDefault(); inp.focus(); } });
+      box.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click', ()=>{ tags.splice(+b.dataset.rm,1); paintValue(); $('#tagInput').focus(); }));
+      inp.addEventListener('keydown', e=>{
+        if(e.key==='Enter' || e.key===','){ e.preventDefault(); if(inp.value.trim()) addTag(inp.value); else if(e.key==='Enter') save(); }
+        else if(e.key==='Backspace' && !inp.value && tags.length){ tags.pop(); paintValue(); $('#tagInput').focus(); }
+        else if(e.key==='Escape'){ cancel(); }
+      });
+    }else if(type==='long'){
+      valZone.innerHTML = '<textarea class="field" data-vtext rows="3" maxlength="600" placeholder="Guideline copy — how should this level speak?">'+esc(text)+'</textarea>';
+      valZone.querySelector('textarea').addEventListener('keydown', e=>{ if(e.key==='Escape') cancel(); });
+    }else{
+      valZone.innerHTML = '<input class="field" data-vtext maxlength="200" placeholder="Value — e.g. Adults 25–45, taste-first" value="'+esc(text)+'">';
+      const el = valZone.querySelector('input');
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter') save(); if(e.key==='Escape') cancel(); });
+    }
+  }
+  function refreshHint(){
+    const nm = nameEl.value.trim().toLowerCase();
+    const hit = nm && inh.get(nm);
+    if(ed.mode==='override' && hit && nm===ed.draft.name.toLowerCase()){
+      hintEl.hidden=false; hintEl.className='ed-hint';
+      hintEl.innerHTML = ICON.down+'<span>Overriding the value inherited from <b>'+esc(hit.from.name)+'</b> — this node and everything beneath it will use your new value.</span>';
+    }else if(hit){
+      hintEl.hidden=false; hintEl.className='ed-hint';
+      hintEl.innerHTML = ICON.down+'<span>Will override “'+esc(hit.attr.name)+'” inherited from <b>'+esc(hit.from.name)+'</b>.</span>';
+    }else{
+      hintEl.hidden=false; hintEl.className='ed-hint quiet';
+      hintEl.innerHTML = ICON.down+'<span>Cascades to every node beneath '+esc(node.name)+'.</span>';
+    }
+  }
+  function setType(t){
+    if(t===type) return;
+    if(type==='tags' && t!=='tags'){ text = tags.join(', '); }
+    if(type!=='tags' && t==='tags'){ text = currentText(); tags = text.split(',').map(s=>s.trim()).filter(Boolean); }
+    if(type!=='tags' && t!=='tags'){ text = currentText(); }
+    type = t;
+    root.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on', b.dataset.type===t));
+    paintValue();
+  }
+  function save(){
+    const name = nameEl.value.trim();
+    if(!name){ errEl.hidden=false; errEl.textContent='Give the attribute a name.'; nameEl.focus(); return; }
+    const dup = node.attrs.some(a=>a.id!==ed.attrId && a.name.toLowerCase()===name.toLowerCase());
+    if(dup){ errEl.hidden=false; errEl.textContent='“'+name+'” is already defined on this node — edit that one instead.'; return; }
+    const value = type==='tags' ? (function(){ const inp=$('#tagInput'); if(inp && inp.value.trim()) inp.value.split(',').map(s=>s.trim()).filter(Boolean).forEach(t=>{ if(!tags.some(x=>x.toLowerCase()===t.toLowerCase())) tags.push(t); }); return tags.slice(); })() : currentText().trim();
+    saveAttr(node.id, ed.attrId, { name, type, value });
+  }
+  function cancel(){ ui.editor=null; render(); }
+
+  root.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click', ()=>setType(b.dataset.type)));
+  nameEl.addEventListener('input', refreshHint);
+  nameEl.addEventListener('keydown', e=>{ if(e.key==='Enter') save(); if(e.key==='Escape') cancel(); });
+  const sg = $('#edSugg');
+  if(sg) sg.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+    nameEl.value = b.dataset.sn; setType(b.dataset.st); refreshHint();
+    const f = valZone.querySelector('[data-vtext], #tagInput'); if(f) f.focus();
+  }));
+  $('#edSave').addEventListener('click', save);
+  $('#edCancel').addEventListener('click', cancel);
+  paintValue(); refreshHint();
+  if(ui.focusAfter==='editor'){ ui.focusAfter=null; (ed.mode==='override' ? valZone.querySelector('[data-vtext], #tagInput') : nameEl).focus(); }
+}
+
+/* ───────────────────────── render: detail ───────────────────────── */
+function renderDetail(){
+  const body = $('#detailBody');
+  if(!state.tree.length){
+    body.innerHTML = '<div class="detail-inner"><div class="empty" style="padding-top:90px">'
+      + '<div class="glyph">'+ICON.layers+'</div><h4>Nothing here yet</h4>'
+      + '<p>Your taxonomy is empty. Create a root node — a brand, client or product line.</p>'
+      + '<button type="button" class="btn btn-primary" data-act="add-root">'+ICON.plus+'Create root node</button>'
+      + '</div></div>';
+    return;
+  }
+  const ctx = findCtx(state.selectedId);
+  if(!ctx){
+    body.innerHTML = '<div class="detail-inner"><div class="empty" style="padding-top:90px">'
+      + '<div class="glyph">'+ICON.layers+'</div><h4>Select a node</h4>'
+      + '<p>Pick any level of the tree to shape how it speaks.</p></div></div>';
+    return;
+  }
+  const node = ctx.node, depth = ctx.depth;
+  const path = pathTo(node.id);
+  const view = attrView(node);
+  const effective = view.local.length + view.inherited.length;
+
+  const crumbs = path.length>1
+    ? '<nav class="crumbs" aria-label="Path">'
+      + path.slice(0,-1).map(n=>'<button type="button" data-act="crumb" data-target="'+n.id+'">'+esc(n.name)+'</button><span class="sep">/</span>').join('')
+      + '<span class="here">'+esc(node.name)+'</span></nav>'
+    : '<nav class="crumbs" aria-label="Path"><span class="here">Root</span></nav>';
+
+  const nameHtml = ui.editName
+    ? '<input class="d-name-input" id="dNameInput" value="'+esc(node.name)+'" maxlength="80" aria-label="Node name">'
+    : '<h2 class="d-name" id="dName" title="Click to rename" tabindex="0">'+esc(node.name)+'</h2>';
+
+  const canAdd = depth < MAX_DEPTH;
+  const editorLocal = ui.editor && ui.editor.nodeId===node.id;
+
+  const localRows = view.local.map(item =>
+    (editorLocal && ui.editor.attrId===item.attr.id) ? editorHtml(node) : localRow(node.id, item)
+  ).join('');
+  const addEditor = (editorLocal && !ui.editor.attrId) ? editorHtml(node) : '';
+  const localEmpty = (!view.local.length && !addEditor)
+    ? '<div class="empty-mini">Nothing defined at this level yet — right now '+esc(node.name)+' speaks entirely with its inherited voice.</div>' : '';
+
+  const inhRows = view.inherited.map(inheritedRow).join('');
+  const inhEmpty = !view.inherited.length
+    ? '<div class="empty-mini">'+(depth===1
+        ? 'This is a root node — nothing above it. Everything defined here cascades to all descendants.'
+        : 'No inherited attributes reach this node yet.')+'</div>'
+    : '';
+
+  body.innerHTML = '<div class="detail-inner" data-node-key="'+node.id+'">'
+    + '<button type="button" class="btn btn-ghost back-btn" data-act="back">'+ICON.back+'Structure</button>'
+    + crumbs
+    + '<div class="d-head"><div class="d-title">'+nameHtml
+    +   '<div class="d-meta">'
+    +     '<span class="meta-chip lvl">Level '+depth+' of '+MAX_DEPTH+'</span>'
+    +     '<span class="meta-chip">'+node.children.length+' '+(node.children.length===1?'child':'children')+'</span>'
+    +     '<span class="meta-chip">'+effective+' attribute'+(effective===1?'':'s')+' in effect</span>'
+    +   '</div></div>'
+    +   '<div class="d-actions">'
+    +     '<button type="button" class="btn btn-outline" data-act="add-child" '+(canAdd?'':'disabled title="Maximum depth — 5 levels"')+'>'+ICON.child+'Add child</button>'
+    +     '<button type="button" class="icon-btn" data-act="node-menu" aria-label="Node actions">'+ICON.dots+'</button>'
+    +   '</div></div>'
+    + '<section class="sec"><div class="sec-h"><h3>Defined at this node</h3><span class="cnt">'+view.local.length+'</span><span class="spacer"></span>'
+    +   '<button type="button" class="btn btn-ghost" data-act="add-attr">'+ICON.plus+'Add attribute</button></div>'
+    +   '<div class="group">'+localRows+addEditor+localEmpty+'</div></section>'
+    + '<section class="sec"><div class="sec-h"><h3>Inherited</h3><span class="cnt">'+view.inherited.length+'</span></div>'
+    +   (view.inherited.length ? '<p class="sec-hint">Flowing down from the levels above — override any of them to make this level speak differently.</p>' : '')
+    +   '<div class="group">'+inhRows+inhEmpty+'</div></section>'
+    + '</div>';
+
+  if(editorLocal) bindEditor(node);
+
+  const ni = $('#dNameInput');
+  if(ni){
+    if(ui.focusAfter==='detail-name'){ ui.focusAfter=null; }
+    ni.focus(); ni.select();
+    let done=false;
+    const fin = ok => { if(done) return; done=true; ok ? renameNode(node.id, ni.value) : (ui.editName=false, render()); };
+    ni.addEventListener('keydown', e=>{ if(e.key==='Enter') fin(true); if(e.key==='Escape') fin(false); });
+    ni.addEventListener('blur', ()=>fin(true));
+  }
+}
+
+function render(){ renderHeader(); renderTree(); renderDetail(); }
+
+/* ───────────────────────── menus ───────────────────────── */
+function closeMenu(){ const l=$('#menuLayer'); l.hidden=true; l.innerHTML=''; document.removeEventListener('keydown', escClose); }
+function escClose(e){ if(e.key==='Escape') closeMenu(); }
+function openMenu(anchor, items){
+  closeMenu();
+  const layer = $('#menuLayer'); layer.hidden=false;
+  const m = document.createElement('div'); m.className='menu'; m.setAttribute('role','menu');
+  items.forEach(it=>{
+    if(it==='-'){ const s=document.createElement('div'); s.className='m-sep'; m.appendChild(s); return; }
+    const b=document.createElement('button'); b.type='button';
+    b.className='m-item'+(it.danger?' danger':''); b.innerHTML=(it.icon||'')+esc(it.label);
+    if(it.disabled){ b.setAttribute('disabled',''); if(it.title) b.title=it.title; }
+    else b.addEventListener('click', ()=>{ closeMenu(); it.fn(); });
+    m.appendChild(b);
+  });
+  layer.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  const mw = m.offsetWidth, mh = m.offsetHeight, vw = innerWidth, vh = innerHeight;
+  let x = Math.min(r.right - mw, vw - mw - 8); x = Math.max(8, Math.min(x, vw-mw-8));
+  if(r.left + mw + 8 < vw && r.right - mw < 8) x = r.left;
+  let y = r.bottom + 6;
+  if(y + mh > vh - 8) y = Math.max(8, r.top - mh - 6);
+  m.style.left = x+'px'; m.style.top = y+'px';
+  layer.onmousedown = e=>{ if(e.target===layer) closeMenu(); };
+  document.addEventListener('keydown', escClose);
+}
+function nodeMenu(anchor, id){
+  const ctx = findCtx(id); if(!ctx) return;
+  openMenu(anchor, [
+    { label:'Rename', icon:ICON.pencil, fn:()=>{ if(state.selectedId===id){ ui.editName=true; render(); } else { ui.renamingId=id; render(); } } },
+    { label:'Add child', icon:ICON.child, disabled:ctx.depth>=MAX_DEPTH, title:'Maximum depth — 5 levels', fn:()=>addChild(id) },
+    { label:'Duplicate', icon:ICON.copy, fn:()=>duplicateNode(id) },
+    '-',
+    { label:'Delete node', icon:ICON.trash, danger:true, fn:()=>deleteNode(id) },
+  ]);
+}
+
+/* ───────────────────────── export ───────────────────────── */
+function exportJson(){
+  const strip = n => ({ name:n.name, attributes:n.attrs.map(a=>({ name:a.name, type:a.type, value:a.value })), children:n.children.map(strip) });
+  const data = { tool:'Talcut', schema:'taxonomy/v1', maxDepth:MAX_DEPTH, exportedAt:new Date().toISOString(), taxonomy:state.tree.map(strip) };
+  const json = JSON.stringify(data, null, 2);
+  const layer = $('#modalLayer'); layer.hidden=false;
+  layer.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-label="Export taxonomy">'
+    + '<header><h3>Export taxonomy</h3><button type="button" class="icon-btn" id="mClose" aria-label="Close">'+ICON.x+'</button></header>'
+    + '<p class="m-sub">Structure and attributes as JSON — ready for your API or a backup.</p>'
+    + '<pre>'+esc(json)+'</pre>'
+    + '<footer><button type="button" class="btn btn-ghost" id="mDone">Done</button>'
+    + '<button type="button" class="btn btn-primary" id="mCopy">'+ICON.copy+'Copy JSON</button></footer></div>';
+  const close = ()=>{ layer.hidden=true; layer.innerHTML=''; document.removeEventListener('keydown', mEsc); };
+  function mEsc(e){ if(e.key==='Escape') close(); }
+  document.addEventListener('keydown', mEsc);
+  layer.onmousedown = e=>{ if(e.target===layer) close(); };
+  $('#mClose').onclick = close; $('#mDone').onclick = close;
+  $('#mCopy').onclick = async ()=>{
+    let ok = false;
+    try{ await navigator.clipboard.writeText(json); ok = true; }
+    catch(e){
+      const ta=document.createElement('textarea'); ta.value=json; document.body.appendChild(ta); ta.select();
+      try{ ok = document.execCommand('copy'); }catch(_){} ta.remove();
+    }
+    $('#mCopy').innerHTML = ok ? ICON.check+'Copied' : ICON.copy+'Select & copy manually';
+    if(ok) setTimeout(()=>{ const b=$('#mCopy'); if(b) b.innerHTML=ICON.copy+'Copy JSON'; }, 1600);
+  };
+}
+
+/* ───────────────────────── events ───────────────────────── */
+function initStatic(){
+  $('#brand').innerHTML = ICON.spark + 'Talcut';
+  $('#exportBtn').innerHTML = ICON.down + 'Export';
+  $('#headMenuBtn').innerHTML = ICON.dots;
+  $('#searchClear').innerHTML = ICON.x;
+
+  $('#exportBtn').addEventListener('click', exportJson);
+  $('#headMenuBtn').addEventListener('click', e => openMenu(e.currentTarget, [
+    { label:'Reset example data', icon:ICON.undo, fn:resetSeed },
+    '-',
+    { label:'Clear taxonomy', icon:ICON.trash, danger:true, fn:clearAll },
+  ]));
+
+  const si = $('#searchInput');
+  si.addEventListener('input', ()=>{
+    ui.search = si.value; $('#searchClear').hidden = !si.value;
+    renderTree();
+  });
+  $('#searchClear').addEventListener('click', ()=>{ si.value=''; ui.search=''; $('#searchClear').hidden=true; renderTree(); si.focus(); });
+
+  /* tree — delegated */
+  const tl = $('#treeScroll');
+  tl.addEventListener('click', e=>{
+    const act = e.target.closest('[data-act]');
+    const row = e.target.closest('[data-node]');
+    if(act && act.dataset.act==='add-root'){ addChild(null); return; }
+    if(!row) return;
+    const id = row.dataset.node;
+    if(act){
+      const a = act.dataset.act;
+      if(a==='toggle'){
+        if(ui.search.trim()) return;
+        const branch = row.parentElement, kids = branch.querySelector(':scope > .kids');
+        const isOpen = expanded.has(id);
+        if(isOpen) expanded.delete(id); else expanded.add(id);
+        if(kids){ kids.classList.toggle('closed', isOpen); }
+        act.classList.toggle('open', !isOpen);
+        act.setAttribute('aria-expanded', String(!isOpen));
+        row.setAttribute('aria-expanded', String(!isOpen));
+        persist();
+        return;
+      }
+      if(a==='add'){ addChild(id); return; }
+      if(a==='menu'){ nodeMenu(act, id); return; }
+    }
+    if(e.target.closest('.rename-input')) return;
+    selectNode(id);
+  });
+  tl.addEventListener('dblclick', e=>{
+    const name = e.target.closest('.n-name'); if(!name) return;
+    const row = e.target.closest('[data-node]'); if(!row) return;
+    ui.renamingId = row.dataset.node; render();
+  });
+
+  /* detail — delegated */
+  $('#detailPane').addEventListener('click', e=>{
+    const node = findCtx(state.selectedId) ? findCtx(state.selectedId).node : null;
+    const act = e.target.closest('[data-act]');
+    if(!act){
+      if(e.target.closest('#dName') && node){ ui.editName=true; render(); }
+      return;
+    }
+    const a = act.dataset.act;
+    if(a==='add-root'){ addChild(null); return; }
+    if(a==='back'){ document.body.classList.remove('detail-open'); return; }
+    if(!node) return;
+    if(a==='crumb' || a==='goto'){ selectNode(act.dataset.target); return; }
+    if(a==='add-child'){ addChild(node.id); return; }
+    if(a==='node-menu'){ nodeMenu(act, node.id); return; }
+    if(a==='add-attr'){
+      ui.editor = { nodeId:node.id, attrId:null, mode:'add', draft:{ name:'', type:'text', value:'' } };
+      ui.focusAfter='editor'; render();
+      const el = $('#attrEditor'); if(el) el.scrollIntoView({ block:'nearest' });
+      return;
+    }
+    if(a==='attr-edit'){
+      const at = node.attrs.find(x=>x.id===act.dataset.attr); if(!at) return;
+      ui.editor = { nodeId:node.id, attrId:at.id, mode:'edit', draft:{ name:at.name, type:at.type, value:Array.isArray(at.value)?at.value.slice():at.value } };
+      ui.focusAfter='editor'; render(); return;
+    }
+    if(a==='attr-del'){ deleteAttr(node.id, act.dataset.attr, false); return; }
+    if(a==='attr-revert'){ deleteAttr(node.id, act.dataset.attr, true); return; }
+    if(a==='attr-override'){
+      const src = findCtx(act.dataset.src); if(!src) return;
+      const at = src.node.attrs.find(x=>x.id===act.dataset.attr); if(!at) return;
+      ui.editor = { nodeId:node.id, attrId:null, mode:'override', draft:{ name:at.name, type:at.type, value:Array.isArray(at.value)?at.value.slice():at.value } };
+      ui.focusAfter='editor'; render();
+      const el = $('#attrEditor'); if(el) el.scrollIntoView({ block:'nearest' });
+      return;
+    }
+  });
+  $('#detailPane').addEventListener('keydown', e=>{
+    if(e.key==='Enter' && e.target.id==='dName'){ ui.editName=true; render(); }
+  });
+}
+
+/* ───────────────────────── boot ───────────────────────── */
+loadState();
+if(state.selectedId && !findCtx(state.selectedId)) state.selectedId = state.tree[0] ? state.tree[0].id : null;
+initStatic();
+render();
+})();
+</script>
