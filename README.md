@@ -46,9 +46,15 @@ node verify.mjs   # headless Chromium checks + screenshots into .verify/
 
 ### Publishing to GitHub Pages
 
-`npm run build` writes `docs/index.html` as well. In the repository, set
-**Settings → Pages → Source: Deploy from a branch**, pick the branch and the
-**/docs** folder, and save. The piece is then served at a normal top-level URL —
+`npm run build` writes `docs/index.html` and a copy at the repository root.
+Deployment goes through `.github/workflows/pages.yml`, which requires
+**Settings → Pages → Source: GitHub Actions**.
+
+Deploy-from-a-branch is deliberately not used. Its two dropdowns cannot be read
+back through the API, so when the site 404s there is no way to tell whether the
+branch, the folder, or the build is at fault — this repository spent a day in
+exactly that state, with Pages quietly pointed at an unrelated branch whose
+build was failing. A workflow run reports success or failure somewhere visible. The piece is then served at a normal top-level URL —
 no frame, no sandbox, no Permissions Policy in the way — where the accelerometer
 simply works. Set `PAGES_URL` in `src/config.js` to that address.
 
