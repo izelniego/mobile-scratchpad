@@ -378,12 +378,6 @@ for (const q of ['low', 'mid', 'high']) {
   });
   ok(fits, 'open drawer fits inside the viewport');
 
-  // A page that can steer gravity by pointer has no tilt problem to solve, so
-  // it must not nag about full screen. The hidden attribute has to actually
-  // hide a flex container for this to hold.
-  ok(await page.isHidden('#escape-controls'),
-     'no escape panel when tilt is not the problem');
-
   await page.focus('#s-gravity');
   for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowLeft');
   const moved = await page.evaluate(() => ({
@@ -530,11 +524,18 @@ for (const q of ['low', 'mid', 'high']) {
     await page.goto('http://localhost:8199/', { waitUntil: 'load' });
     await page.waitForTimeout(500);
     await page.click('#begin');
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(2400);   // past the 1600ms sensor fallback
     await page.click('#controls-toggle');
     await page.waitForTimeout(400);
     const vis = await page.locator('#escape-controls .escape-safari').isVisible();
     ok(vis === wantVisible, `Safari jump ${wantVisible ? 'offered' : 'withheld'} on ${device}`);
+
+    // A desktop has no accelerometer to recover, so pointing it at a full
+    // screen tab would be noise; a phone that reports no motion might well be
+    // an in-app browser, where the unframed address is the actual remedy.
+    const panel = await page.locator('#escape-controls').isVisible();
+    ok(panel === wantVisible,
+       `escape panel ${wantVisible ? 'offered' : 'withheld'} on ${device}`);
     if (vis) {
       const h = await page.locator('#escape-controls .escape-safari').getAttribute('href');
       ok(h.startsWith('x-safari-https://'), `Safari jump uses the iOS scheme (${h})`);
