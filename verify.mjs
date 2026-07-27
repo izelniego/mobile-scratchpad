@@ -17,6 +17,8 @@ const server = createServer((_, res) => {
   res.end(html);
 }).listen(8199);
 
+const PAGES_URL = 'https://izelniego.github.io/mobile-scratchpad/';
+
 const fail = [];
 const ok = (cond, msg) => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${msg}`); if (!cond) fail.push(msg); };
 
@@ -376,6 +378,12 @@ for (const q of ['low', 'mid', 'high']) {
   });
   ok(fits, 'open drawer fits inside the viewport');
 
+  // A page that can steer gravity by pointer has no tilt problem to solve, so
+  // it must not nag about full screen. The hidden attribute has to actually
+  // hide a flex container for this to hold.
+  ok(await page.isHidden('#escape-controls'),
+     'no escape panel when tilt is not the problem');
+
   await page.focus('#s-gravity');
   for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowLeft');
   const moved = await page.evaluate(() => ({
@@ -407,13 +415,10 @@ for (const q of ['low', 'mid', 'high']) {
   await ctx.close();
 }
 
-// --- 10. framed behaviour ----------------------------------------------------
+// --- 10. framed + sandboxed: the exact failure that was reported -------------
 {
   const ctx = await browser.newContext({ ...devices['iPhone 13'], isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  // Headless Chromium exposes no motion API whatsoever, so stand in for a real
-  // phone: the API exists, and the permission request fails the way it does in
-  // a frame that was never delegated the sensor.
   await page.addInitScript(() => {
     window.DeviceOrientationEvent = function () {};
     window.DeviceOrientationEvent.requestPermission =
@@ -421,32 +426,121 @@ for (const q of ['low', 'mid', 'high']) {
     window.DeviceMotionEvent = function () {};
     window.DeviceMotionEvent.requestPermission = () => Promise.reject(new Error('blocked'));
   });
-  // A real cross-origin frame: 127.0.0.1 is a different origin to localhost.
+  // A cross-origin frame WITHOUT allow-popups. This is the shape that silently
+  // swallowed the escape link in v2: target="_blank" is blocked with no error
+  // the user can see, so the button simply did nothing.
   await page.setContent(
     `<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style>
-     <iframe src="http://127.0.0.1:8199/"></iframe>`,
+     <iframe sandbox="allow-scripts allow-same-origin" src="http://127.0.0.1:8199/"></iframe>`,
     { waitUntil: 'load' });
   const frame = page.frameLocator('iframe');
   await page.waitForTimeout(900);
 
-  ok(await frame.locator('#intro-escape').isVisible(), 'framed page surfaces the full-screen escape');
-  const framedClass = await frame.locator('.intro-actions').getAttribute('class');
-  ok(framedClass.includes('framed'), 'framed layout promotes the escape over starting here');
+  // BEGIN must stay primary — it is the control that always works.
   const beginText = await frame.locator('#begin').textContent();
-  ok(beginText.includes('WITHOUT TILT'), `start control is honest about it ("${beginText}")`);
+  ok(beginText.trim() === 'TAP TO BEGIN', `BEGIN stays the primary action ("${beginText.trim()}")`);
+  ok(await frame.locator('#intro').isVisible(), 'intro is up before begin');
+  ok(await frame.locator('#escape-intro').isVisible(), 'framed page shows the escape panel');
+
+  const href = await frame.locator('#escape-intro .escape-open').getAttribute('href');
+  ok(href === PAGES_URL, `escape points at the unframed address (${href})`);
+  ok(new URL(href).origin !== 'http://127.0.0.1:8199',
+     'escape is cross-origin, which is the only kind a host will forward');
+
+  ok((await frame.locator('#escape-intro .escape-url').textContent()).trim() === PAGES_URL,
+     'the address is on screen as text, not only inside the link');
+
+  // The regression itself: tap it, and because the sandbox eats the navigation,
+  // the page must admit that nothing happened rather than sit there silently.
+  ok(await frame.locator('#escape-intro .escape-failed').isHidden(),
+     'no failure notice before the tap');
+  await frame.locator('#escape-intro .escape-open').click();
+  await page.waitForTimeout(1400);
+  ok(await frame.locator('#escape-intro .escape-failed').isVisible(),
+     'a swallowed tap is reported instead of failing silently');
 
   await frame.locator('#begin').click();
   await page.waitForTimeout(2300);
+  ok(await frame.locator('#intro').isHidden(),
+     'the intro really leaves the layout once dismissed');
   const src = await frame.locator('#v-source').textContent();
   ok(src.includes('FRAMED'), `telemetry names the real cause ("${src}")`);
 
   await frame.locator('#controls-toggle').click();
   await page.waitForTimeout(500);
-  const why = await frame.locator('#tilt-why').textContent();
-  ok(why.includes('embedded'), 'controls explain why tilt is unavailable');
-  ok(await frame.locator('#fullscreen-link').isVisible(), 'controls offer the escape too');
+  ok(await frame.locator('#escape-controls').isVisible(), 'controls carry the escape too');
   await page.screenshot({ path: join(shots, '12-framed.png') });
   await ctx.close();
+}
+
+// --- 10b. copying the address ------------------------------------------------
+{
+  const ctx = await browser.newContext({
+    ...devices['iPhone 13'], isMobile: true, hasTouch: true,
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
+  const page = await ctx.newPage();
+  await page.goto('http://localhost:8199/', { waitUntil: 'load' });
+  await page.waitForTimeout(500);
+  await page.click('#begin');
+  await page.waitForTimeout(2200);
+  await page.click('#controls-toggle');
+  await page.waitForTimeout(400);
+
+  await page.click('#escape-controls .escape-copy-btn');
+  await page.waitForTimeout(300);
+  const clip = await page.evaluate(() => navigator.clipboard.readText());
+  ok(clip === PAGES_URL, `COPY puts the address on the clipboard (${clip})`);
+  ok((await page.textContent('#escape-controls .escape-copy-btn')).includes('COPIED'),
+     'COPY confirms it worked');
+  await ctx.close();
+}
+
+// --- 10c. clipboard blocked -> selection fallback ----------------------------
+{
+  const ctx = await browser.newContext({ ...devices['iPhone 13'], isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  // Embed policies can withhold clipboard-write as well; the old selection
+  // path has to carry it when the modern API is unavailable.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { get: () => undefined });
+    window.__execCopy = 0;
+    document.execCommand = (cmd) => { if (cmd === 'copy') window.__execCopy++; return true; };
+  });
+  await page.goto('http://localhost:8199/', { waitUntil: 'load' });
+  await page.waitForTimeout(500);
+  await page.click('#begin');
+  await page.waitForTimeout(2200);
+  await page.click('#controls-toggle');
+  await page.waitForTimeout(400);
+  await page.click('#escape-controls .escape-copy-btn');
+  await page.waitForTimeout(300);
+  ok(await page.evaluate(() => window.__execCopy) === 1,
+     'falls back to selection copy when the clipboard API is withheld');
+  const sel = await page.evaluate(() => String(window.getSelection()));
+  ok(sel === PAGES_URL, 'the address is left selected so it can be copied by hand');
+  await ctx.close();
+}
+
+// --- 10d. the Safari jump is iOS-only ----------------------------------------
+{
+  for (const [device, wantVisible] of [['iPhone 13', true], ['Desktop Chrome', false]]) {
+    const ctx = await browser.newContext({ ...devices[device] });
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8199/', { waitUntil: 'load' });
+    await page.waitForTimeout(500);
+    await page.click('#begin');
+    await page.waitForTimeout(2200);
+    await page.click('#controls-toggle');
+    await page.waitForTimeout(400);
+    const vis = await page.locator('#escape-controls .escape-safari').isVisible();
+    ok(vis === wantVisible, `Safari jump ${wantVisible ? 'offered' : 'withheld'} on ${device}`);
+    if (vis) {
+      const h = await page.locator('#escape-controls .escape-safari').getAttribute('href');
+      ok(h.startsWith('x-safari-https://'), `Safari jump uses the iOS scheme (${h})`);
+    }
+    await ctx.close();
+  }
 }
 
 // --- 11. sensor retry --------------------------------------------------------

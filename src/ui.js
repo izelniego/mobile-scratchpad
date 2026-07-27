@@ -1,6 +1,8 @@
 // Instrument overlay: intro gate, one-time gesture teaching, live telemetry,
 // and the manual gravity control used when no sensor reports.
 
+import { PAGES_URL, SAFARI_URL, IS_IOS } from './config.js';
+
 const MATERIALS = ['CHROME', 'CHROME/GLASS', 'GLASS', 'GLASS/OBSIDIAN', 'OBSIDIAN'];
 
 // Real surface gravities, as multiples of Earth's. The dial snaps its label to
@@ -26,8 +28,9 @@ function gravityLabel(g) {
 const TILT_COPY = {
   ok:      ['LIVE', ''],
   framed:  ['BLOCKED BY FRAME',
-            'This page is embedded, and an embedded page is not granted the motion ' +
-            'sensors. Open it full screen and tilt works immediately.'],
+            'An embedded page is not granted the motion sensors, and a sandboxed one ' +
+            'cannot open a tab out of itself either — so the link below may do ' +
+            'nothing. The address is there to copy if it does.'],
   denied:  ['PERMISSION DENIED',
             'Motion access was refused or the prompt was dismissed. Tap enable to ask again.'],
   nosignal:['NO SIGNAL',
@@ -44,7 +47,6 @@ export class UI {
   constructor() {
     this.intro = document.getElementById('intro');
     this.begin = document.getElementById('begin');
-    this.note = document.getElementById('intro-note');
     this.hud = document.getElementById('hud');
     this.hint = document.getElementById('hint');
     this.puck = document.getElementById('puck');
@@ -67,8 +69,6 @@ export class UI {
     this.vTilt = document.getElementById('v-tilt');
     this.tiltWhy = document.getElementById('tilt-why');
     this.enableTilt = document.getElementById('enable-tilt');
-    this.fullscreenLink = document.getElementById('fullscreen-link');
-    this.introEscape = document.getElementById('intro-escape');
     this.introActions = document.querySelector('.intro-actions');
 
     this.hintQueue = [];
@@ -78,25 +78,80 @@ export class UI {
 
     this.puckDrag = null;
     this.onManual = null;
+
+    this.escapes = ['escape-intro', 'escape-controls']
+      .map((id) => document.getElementById(id))
+      .filter(Boolean)
+      .map((root) => this.wireEscape(root));
   }
 
-  // A framed page cannot reach the motion sensors at all, so the escape becomes
-  // the headline action rather than a footnote. Inside the frame location.href
-  // is already this document's own URL, and the host only intercepts
-  // cross-origin anchor clicks, so this link opens top-level untouched.
-  setupEscape(framed) {
-    const href = location.href;
-    this.framed = framed;
-    this.introEscape.href = href;
-    this.fullscreenLink.href = href;
-    if (!framed) return;
+  // One escape panel. Every route is present at once rather than revealed in
+  // sequence, because the failure mode being defended against is a tap that
+  // silently accomplishes nothing.
+  wireEscape(root) {
+    const open = root.querySelector('.escape-open');
+    const safari = root.querySelector('.escape-safari');
+    const url = root.querySelector('.escape-url');
+    const copyBtn = root.querySelector('.escape-copy-btn');
+    const failed = root.querySelector('.escape-failed');
 
-    this.introEscape.hidden = false;
-    this.introActions.classList.add('framed');
-    this.begin.textContent = 'CONTINUE WITHOUT TILT';
-    this.note.textContent =
-      'Embedded pages are not granted motion sensors. Full screen restores tilt.';
-    this.note.hidden = false;
+    open.href = PAGES_URL;
+    url.textContent = PAGES_URL;
+
+    if (IS_IOS) {
+      safari.href = SAFARI_URL;
+      safari.hidden = false;
+    }
+
+    // If the tap had worked we would be navigating or backgrounded by now.
+    // Still here and still visible means it was swallowed, so say so.
+    open.addEventListener('click', () => {
+      setTimeout(() => {
+        if (document.visibilityState === 'visible' && document.hasFocus()) {
+          failed.hidden = false;
+        }
+      }, 900);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const done = (okCopy) => {
+        copyBtn.textContent = okCopy ? 'COPIED' : 'SELECT IT';
+        setTimeout(() => { copyBtn.textContent = 'COPY'; }, 1800);
+      };
+      try {
+        await navigator.clipboard.writeText(PAGES_URL);
+        done(true);
+        return;
+      } catch (e) {
+        // clipboard-write is origin-scoped in some embed policies, so fall back
+        // to the old selection-based copy before giving up.
+      }
+      try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(url);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        done(document.execCommand('copy'));
+      } catch (e) {
+        done(false);
+      }
+    });
+
+    root.hidden = true;
+    return root;
+  }
+
+  showEscape(show) {
+    for (const root of this.escapes) root.hidden = !show;
+  }
+
+  // BEGIN stays the primary action even when framed. v2 promoted the escape
+  // link instead, which was backwards: the escape can fail silently inside a
+  // sandbox, and the headline control should be the one that always works.
+  setupEscape(framed) {
+    this.framed = framed;
+    if (framed) this.showEscape(true);
   }
 
   onBegin(fn) {
@@ -173,9 +228,9 @@ export class UI {
     // Retry only where a permission could still be granted. Offering it on a
     // machine with no sensors would just be a button that does nothing.
     this.enableTilt.hidden = !(reason === 'denied' || reason === 'nosignal');
-    // Going full screen fixes tilt for any framed failure, not just the one we
-    // managed to identify as framing, so offer it whenever we are in a frame.
-    this.fullscreenLink.hidden = !(this.framed || reason === 'framed');
+    // The unframed address fixes tilt for every failure that is not simply an
+    // absent sensor, so offer it whenever tilt is not actually live.
+    this.showEscape(reason !== 'ok' && reason !== 'desktop' && reason !== 'pending');
   }
 
   // ------------------------------------------------------------------ drawer

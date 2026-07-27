@@ -30,6 +30,24 @@ async function fontFaces() {
   return faces.join('\n');
 }
 
+// Every route out, shown together. The link may silently do nothing — a
+// sandboxed frame blocks target="_blank" without a word — so the URL itself is
+// always present as text that can be copied by hand.
+const escapePanel = (id) => `
+<div class="escape" id="${id}">
+  <p class="escape-why">Tilt needs a full-screen tab. This copy is embedded, and an
+     embedded page is not granted the motion sensors.</p>
+  <div class="escape-actions">
+    <a class="escape-open" target="_blank" rel="noopener">OPEN FULL SCREEN</a>
+    <a class="escape-safari" hidden>OPEN IN SAFARI</a>
+  </div>
+  <div class="escape-copy">
+    <code class="escape-url"></code>
+    <button class="escape-copy-btn" type="button">COPY</button>
+  </div>
+  <p class="escape-failed" hidden>That didn't open. Copy the link and paste it into Safari.</p>
+</div>`;
+
 const BODY = `
 <div id="stage"><canvas id="gl"></canvas></div>
 
@@ -89,8 +107,8 @@ const BODY = `
     <p id="tilt-why"></p>
     <div class="ctl-actions">
       <button id="enable-tilt" type="button" hidden>ENABLE TILT</button>
-      <a id="fullscreen-link" hidden target="_blank" rel="noopener">OPEN FULL SCREEN</a>
     </div>
+    ${escapePanel('escape-controls')}
   </div>
 </section>
 
@@ -105,9 +123,8 @@ const BODY = `
   </p>
   <div class="intro-actions">
     <button id="begin" type="button">TAP TO BEGIN</button>
-    <a id="intro-escape" class="intro-secondary" hidden target="_blank" rel="noopener">OPEN FULL SCREEN</a>
   </div>
-  <p class="intro-note" id="intro-note" hidden></p>
+  ${escapePanel('escape-intro')}
 </div>
 
 <div id="unsupported"><p></p></div>

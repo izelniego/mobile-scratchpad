@@ -24,6 +24,11 @@
 
 * { box-sizing: border-box; }
 
+/* An author `display` declaration outranks the UA's `[hidden] { display: none }`,
+   so any flex or grid container that also uses the hidden attribute silently
+   stays on screen. Several here do. Settle it once, globally. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -316,19 +321,6 @@ body {
 
 #begin:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
 
-.intro-note {
-  font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 300;
-  line-height: 1.5;
-  color: var(--mist);
-  opacity: 0.65;
-  max-width: 32ch;
-  margin: 0;
-}
-
-.intro-note a { color: var(--quick); text-decoration: underline; text-underline-offset: 3px; }
-
 #unsupported {
   position: fixed;
   inset: 0;
@@ -575,41 +567,114 @@ body {
   gap: 16px;
 }
 
-/* When the page is framed the sensors are unreachable, so the escape becomes
-   the primary control and starting here becomes the quieter option. */
-.intro-actions.framed { flex-direction: column-reverse; }
-
-.intro-actions.framed #begin {
-  border-color: transparent;
-  color: var(--mist);
-  font-size: 9px;
-  padding: 8px 18px;
-}
-
-.intro-actions.framed #begin:hover { color: var(--quick); }
-
-#intro-escape {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.32em;
-  text-indent: 0.32em;
-  color: var(--quick);
-  border: 1px solid var(--steel);
-  border-radius: 999px;
-  padding: 15px 30px;
-  text-decoration: none;
-  transition: border-color 300ms ease, background 300ms ease;
-}
-
-.intro-actions.framed #intro-escape {
-  border-color: var(--quick);
-  background: rgba(220, 227, 236, 0.07);
-}
-
-#intro-escape:hover { border-color: var(--quick); }
-#intro-escape:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
-
 @media (prefers-reduced-motion: reduce) {
   #controls, #controls.open { transition: none; }
 }
+
+/* ------------------------------------------------------------------ escape */
+
+/* Shown whenever tilt is unavailable. Carries three routes at once — a link, an
+   iOS-only Safari jump, and the address as plain copyable text — because the
+   link can be swallowed without any error when the page is sandboxed. */
+.escape {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  max-width: 36ch;
+  margin: 0 auto;
+  padding: 16px;
+  border: 1px solid var(--steel);
+  border-radius: 14px;
+  background: rgba(15, 17, 22, 0.55);
+}
+
+#controls .escape { align-items: stretch; max-width: none; margin: 4px 0 0; }
+
+.escape-why {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--mist);
+  text-align: center;
+}
+
+#controls .escape-why { text-align: left; }
+
+.escape-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.escape-actions a {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--quick);
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 11px 18px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.escape-actions .escape-open { border-color: var(--quick); background: rgba(220, 227, 236, 0.07); }
+.escape-actions a:hover { border-color: var(--quick); }
+.escape-actions a:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+.escape-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Selectable on purpose: the body sets user-select:none, and this is the one
+   string a reader may genuinely need to lift off the screen by hand. */
+.escape-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--quick);
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.escape-copy-btn {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  color: var(--quick);
+  background: transparent;
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.escape-copy-btn:hover { border-color: var(--quick); }
+.escape-copy-btn:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+.escape-failed {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--quick);
+  text-align: center;
+}
+
+#controls .escape-failed { text-align: left; }

@@ -47,8 +47,13 @@ node verify.mjs   # headless Chromium checks + screenshots into .verify/
 ### Publishing to GitHub Pages
 
 `npm run build` writes `docs/index.html` as well. In the repository, set
-**Settings → Pages → Deploy from a branch → /docs**, and the piece is served at
-a normal top-level URL where the accelerometer works without any escape hatch.
+**Settings → Pages → Source: Deploy from a branch**, pick the branch and the
+**/docs** folder, and save. The piece is then served at a normal top-level URL —
+no frame, no sandbox, no Permissions Policy in the way — where the accelerometer
+simply works. Set `PAGES_URL` in `src/config.js` to that address.
+
+On iOS, open it in Safari proper. In-app browsers (a WKWebView inside another
+app) frequently refuse the motion sensors even on an unframed page.
 
 ## How it works
 
@@ -89,24 +94,38 @@ user gesture, which is what the opening screen is for.
 
 ### Tilt does not work in an embedded frame
 
-This is worth stating plainly, because it looks like a bug and is not one.
-Sensor access is governed by Permissions Policy, and an embed host that ships
+Two separate walls, and they stack.
+
+**Wall one — Permissions Policy.** An embed host that ships
 
 ```
 permissions-policy: accelerometer=self, gyroscope=self
 ```
 
-has **not** delegated those sensors to a cross-origin child frame — `self` means
+has **not** delegated those sensors to a cross-origin child frame; `self` means
 the host's own origin only. The browser blocks `deviceorientation` and
-`devicemotion` inside such a frame, and no JavaScript can work around it.
+`devicemotion` inside such a frame and no JavaScript can work around it.
 
-claude.ai serves artifacts exactly this way, from
-`<uuid>.frame.claudeusercontent.com` inside an iframe. So when the piece detects
-it is framed it says so, and promotes an **OPEN FULL SCREEN** link as the
-primary action — the same document, opened top-level, has the sensors.
+**Wall two — the sandbox.** The obvious response is a link out to the same page
+at top level. That does not work either, because an embedded page is typically
+sandboxed, and a sandbox without `allow-popups` blocks `target="_blank"` *with
+no visible error*. Measured here against this very page:
 
-Serving `docs/index.html` from GitHub Pages sidesteps the problem entirely,
-since that page is never framed.
+| iframe sandbox | new tab opens? |
+|---|---|
+| none | yes |
+| `allow-scripts allow-same-origin` | **no**, silently |
+
+Hosts that provide their own escape channel — postMessaging the parent to
+navigate — generally trigger it only for links that **leave their origin**. A
+link back to the frame's own URL is precisely the one that cannot get out. So
+the way out has to point at a different origin, which is what `PAGES_URL` in
+`src/config.js` is for.
+
+Because that link can still be swallowed, the escape panel never relies on it
+alone. It offers the link, an iOS-only `x-safari-https:` jump for in-app
+browsers, and the address itself as copyable text — and if the tap produces
+nothing within 900 ms, it says so rather than leaving a dead button.
 
 When tilt genuinely is not available — refused permission, a desktop browser, or
 a frame — the piece names the specific reason in the HUD and hands over to a

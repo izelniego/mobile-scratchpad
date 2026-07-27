@@ -270,6 +270,8 @@ function boot() {
   });
   ui.applySettings(settings);
 
+  // The escape panel needs to exist before the first status update, since that
+  // is what decides whether to show it.
   ui.setupEscape(input.framed);
   ui.setSource('idle', 'pending');
 
