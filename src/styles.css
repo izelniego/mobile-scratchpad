@@ -492,12 +492,12 @@ body {
 }
 
 #controls input[type="range"].hue::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--steel) 0 6%, #FF4D4D 6%, #FFE24D 22%,
+  background: linear-gradient(to right, var(--steel) 0 2%, #FF4D4D 8%, #FFE24D 22%,
               #63FF7A 39%, #4DE8FF 56%, #6B6BFF 72%, #FF5DE0 88%, #FF4D4D 100%);
 }
 
 #controls input[type="range"].hue::-moz-range-track {
-  background: linear-gradient(to right, var(--steel) 0 6%, #FF4D4D 6%, #FFE24D 22%,
+  background: linear-gradient(to right, var(--steel) 0 2%, #FF4D4D 8%, #FFE24D 22%,
               #63FF7A 39%, #4DE8FF 56%, #6B6BFF 72%, #FF5DE0 88%, #FF4D4D 100%);
 }
 
@@ -678,3 +678,81 @@ body {
 }
 
 #controls .escape-failed { text-align: left; }
+
+/* ------------------------------------------------------------------ port */
+
+/* The drain in the top wall of the cell. Positioned from the simulation's own
+   geometry by placePort(), so it sits exactly on the hole rather than near it. */
+#port {
+  position: fixed;
+  z-index: 4;
+  width: var(--port-size, 56px);
+  height: var(--port-size, 56px);
+  margin-left: calc(var(--port-size, 56px) / -2);
+  margin-top: calc(var(--port-size, 56px) / -2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.port-iris {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid var(--steel);
+  /* Sealed reads as a filled diaphragm; open as a ring around a dark mouth. */
+  background: radial-gradient(circle at 50% 42%,
+              rgba(220, 227, 236, 0.22), rgba(15, 17, 22, 0.85) 72%);
+  transition: background 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+}
+
+#port.open .port-iris {
+  border-color: var(--quick);
+  background: radial-gradient(circle at 50% 50%,
+              rgba(0, 0, 0, 0.92) 46%, rgba(220, 227, 236, 0.14) 78%,
+              rgba(0, 0, 0, 0) 100%);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.9), 0 0 16px rgba(220, 227, 236, 0.22);
+}
+
+.port-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 7px);
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  white-space: nowrap;
+  color: var(--mist);
+}
+
+#port.open .port-label { color: var(--quick); }
+#port:focus-visible .port-iris { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+/* Volume readout doubles as a gauge: the bar under it is the fill level. */
+#v-mass {
+  position: relative;
+  padding-bottom: 4px;
+}
+
+#v-mass::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(to right,
+              var(--quick) 0 var(--fill, 0%), var(--steel) var(--fill, 0%) 100%);
+}
+
+#v-mass.warn { color: var(--mist); }
+
+@media (prefers-reduced-motion: reduce) {
+  .port-iris { transition: none; }
+}

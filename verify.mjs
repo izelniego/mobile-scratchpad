@@ -139,9 +139,9 @@ async function litFraction(page) {
   // tap -> droplet
   const dropped = await page.evaluate(() => {
     const { sim } = window.__mercury;
-    const before = sim.balls.filter(b => b.alive).length;
-    sim.dropAt(0.2, 0.9);
-    return sim.balls.filter(b => b.alive).length - before;
+    const before = sim.volume();
+    sim.addDrop(0.2, 0.9);
+    return sim.volume() - before;
   });
   ok(dropped === 1, 'tap spawns a droplet');
 
@@ -570,6 +570,183 @@ for (const q of ['low', 'mid', 'high']) {
   await page.waitForTimeout(400);
   const asked = await page.evaluate(() => window.__asked);
   ok(asked >= 2, `retry re-asks for permission (${asked} requests)`);
+  await ctx.close();
+}
+
+// --- 11b. volume: drops accumulate, and the vessel has a ceiling -----------
+{
+  const { ctx, page, errors } = await session('volume');
+  await page.click('#begin');
+  await page.waitForTimeout(400);
+
+  const before = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    sim.setGravity(0, -1, 0);
+    advance(3);
+    return sim.volume();
+  });
+  await page.waitForTimeout(600);
+  const litBefore = await page.evaluate(() => window.__mercury.lit());
+
+  const after = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    for (let i = 0; i < 5; i++) { sim.addDrop(0, 0.2); advance(0.35); }
+    advance(3);
+    return sim.volume();
+  });
+  await page.waitForTimeout(600);
+  const litAfter = await page.evaluate(() => window.__mercury.lit());
+
+  ok(after === before + 5, `five taps add five drops (${before} -> ${after})`);
+  // Screen coverage, not the bounding sphere: the bound is pinned by the
+  // container walls long before the volume stops growing.
+  ok(litAfter > litBefore * 1.08,
+     `the mass visibly grows on screen (${litBefore.toFixed(3)} -> ${litAfter.toFixed(3)} covered)`);
+  await settle(page, 2);
+  await page.screenshot({ path: join(shots, '13-grown.png') });
+
+  const ceiling = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    let refusals = 0;
+    for (let i = 0; i < 30; i++) { if (!sim.addDrop(0, 0.2)) refusals++; }
+    advance(2);
+    return { n: sim.volume(), refusals, full: sim.isFull() };
+  });
+  ok(ceiling.n === 16, `volume stops at capacity (${ceiling.n} / 16)`);
+  ok(ceiling.refusals > 0 && ceiling.full, `taps past full are refused (${ceiling.refusals} refused)`);
+
+  await page.evaluate(() => window.__mercury.sim.addDrop(0, 0.2));
+  const flashed = await page.waitForFunction(
+    () => document.getElementById('v-mass').textContent === 'FULL',
+    null, { timeout: 4000 }).then(() => true).catch(() => false);
+  ok(flashed, 'a refused tap says FULL instead of doing nothing');
+
+  ok(errors.length === 0, `no errors while filling  ${errors.slice(0, 2).join(' | ')}`);
+  await ctx.close();
+}
+
+// --- 11c. the port: sealed holds, open pours -------------------------------
+{
+  const { ctx, page, errors } = await session('port');
+  await page.click('#begin');
+  await page.waitForTimeout(400);
+
+  // Sealed, inverted: the top wall is solid and nothing escapes.
+  const sealed = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    sim.portOpen = false;
+    sim.setGravity(0, 1, 0);          // "down" is now up the screen
+    const before = sim.volume();
+    advance(6);
+    return { before, after: sim.volume() };
+  });
+  ok(sealed.after === sealed.before,
+     `a sealed port holds it all in (${sealed.before} -> ${sealed.after})`);
+
+  // Open, inverted: it pours out through the mouth until the cell is empty.
+  const poured = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    sim.portOpen = true;
+    const before = sim.volume();
+    advance(2.5);
+    const mid = sim.volume();
+    advance(20);
+    return { before, mid, after: sim.volume() };
+  });
+  ok(poured.mid < poured.before, `an open port pours (${poured.before} -> ${poured.mid})`);
+  ok(poured.after === 0, `it empties completely (${poured.after} left)`);
+  await settle(page, 1);
+  await page.screenshot({ path: join(shots, '14-emptied.png') });
+
+  // Empty must render rather than produce NaN geometry.
+  const empty = await page.evaluate(() => {
+    const u = window.__mercury.uniforms;
+    return {
+      r: u.uBoundR.value,
+      finite: Number.isFinite(u.uBoundC.value.x) && Number.isFinite(u.uBoundR.value),
+      lit: window.__mercury.lit(),
+    };
+  });
+  ok(empty.finite && empty.r === 0, `an empty cell has clean bounds (r=${empty.r})`);
+  ok(empty.lit < 0.02, `nothing is drawn when there is nothing in it (lit ${empty.lit.toFixed(3)})`);
+  ok(errors.length === 0, `no errors while emptying  ${errors.slice(0, 2).join(' | ')}`);
+
+  // ...and it can be refilled from empty.
+  const count = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    sim.portOpen = false;
+    sim.setGravity(0, -1, 0);
+    for (let i = 0; i < 4; i++) { sim.addDrop(0, 0.3); advance(0.3); }
+    advance(2);
+    return sim.volume();
+  });
+  ok(count === 4, `tapping refills from empty (${count})`);
+  // lit() samples the render target, which only updates on an animation frame.
+  await page.waitForTimeout(600);
+  const relit = await page.evaluate(() => window.__mercury.lit());
+  ok(relit > 0.005, `and it renders again (lit ${relit.toFixed(3)})`);
+  await ctx.close();
+}
+
+// --- 11d. the port control ---------------------------------------------------
+{
+  const { ctx, page } = await session('port-ui', '', { reducedMotion: 'reduce' });
+  await page.click('#begin');
+  await page.waitForTimeout(1200);
+
+  ok(await page.isVisible('#port'), 'the port is on screen');
+  const box = await page.locator('#port').boundingBox();
+  const vp = page.viewportSize();
+  ok(box.y < vp.height * 0.30 && Math.abs((box.x + box.width / 2) - vp.width / 2) < 8,
+     `it sits at the top centre, on the wall it drains through (y ${Math.round(box.y)})`);
+
+  await page.evaluate(() => { window.__portDrag = false;
+    document.getElementById('gl').addEventListener('pointerdown', () => { window.__portDrag = true; }); });
+  await page.click('#port');
+  await page.waitForTimeout(200);
+  const st = await page.evaluate(() => ({
+    open: window.__mercury.sim.portOpen,
+    label: document.querySelector('.port-label').textContent,
+    leaked: window.__portDrag,
+  }));
+  ok(st.open === true, 'tapping it opens the port');
+  ok(st.label === 'OPEN', `and it says so ("${st.label}")`);
+  ok(st.leaked === false, 'tapping the port never lands on the canvas as a drop');
+
+  await page.click('#port');
+  await page.waitForTimeout(200);
+  ok(await page.evaluate(() => window.__mercury.sim.portOpen) === false, 'tapping again seals it');
+  await page.screenshot({ path: join(shots, '15-port.png') });
+  await ctx.close();
+}
+
+// --- 11e. spectrum track has no dead notch ----------------------------------
+{
+  const { ctx, page } = await session('spectrum-track', '', { reducedMotion: 'reduce' });
+  await page.click('#begin');
+  await page.waitForTimeout(900);
+  await page.click('#controls-toggle');
+  await page.waitForTimeout(400);
+
+  // The gap was a flat grey run followed by a hard step straight into red.
+  // Steel must end early and the first hue must start later, so the two blend.
+  const stops = await page.evaluate(() => {
+    for (const sheet of document.styleSheets) {
+      for (const rule of sheet.cssRules) {
+        const t = rule.cssText || '';
+        if (t.includes('.hue') && t.includes('linear-gradient')) return t;
+      }
+    }
+    return '';
+  });
+  // The notch was steel and the first hue sharing a stop, so the track jumped
+  // straight from grey to saturated red. They must now be separated by a span
+  // the browser can interpolate across.
+  const m = stops.match(/var\(--steel\)\s+0\s+([\d.]+)%,\s*#FF4D4D\s+([\d.]+)%/i);
+  ok(!!m && parseFloat(m[2]) > parseFloat(m[1]),
+     m ? `neutral blends into the spectrum across ${m[1]}%-${m[2]}% rather than stepping`
+       : 'could not find the steel/hue stops in the track gradient');
+  await page.screenshot({ path: join(shots, '16-spectrum.png') });
   await ctx.close();
 }
 

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import mercuryFrag from './shaders/mercury.frag.glsl';
 import bloomFrag from './shaders/bloom.frag.glsl';
 import compositeFrag from './shaders/composite.frag.glsl';
-import { Sim, MAX_BALLS } from './physics.js';
+import { Sim, MAX_BALLS, PORT_RADIUS } from './physics.js';
 import { Input } from './input.js';
 import { UI } from './ui.js';
 
@@ -190,6 +190,11 @@ function boot() {
     const halfH = K * 0.5;
     const halfW = halfH * (cssW / cssH);
     sim.resize(halfW, halfH);
+
+    // Port sits on the top wall, and its on-screen size tracks the aperture.
+    const mouth = worldToScreen(0, sim.hy);
+    const edge = worldToScreen(PORT_RADIUS, sim.hy);
+    ui.placePort(mouth.x, mouth.y, Math.abs(edge.x - mouth.x));
   }
 
   window.addEventListener('resize', resize);
@@ -203,6 +208,15 @@ function boot() {
     const ux = (clientX - cssW / 2) / cssH;
     const uy = -(clientY - cssH / 2) / cssH;
     return { x: ux * K, y: uy * K };
+  }
+
+  // The inverse, so the port control can sit exactly on the hole in the top
+  // wall rather than approximately near it.
+  function worldToScreen(x, y) {
+    return {
+      x: (x / K) * cssH + cssW / 2,
+      y: cssH / 2 - (y / K) * cssH,
+    };
   }
 
   const input = new Input(document.getElementById('gl'), sim, {
@@ -263,6 +277,11 @@ function boot() {
     }
   }
 
+  ui.wirePort((open) => {
+    sim.portOpen = open;
+    haptic(open ? 14 : 8);
+  });
+
   ui.wireControls({
     onGravity: applyGravity,
     onSpectrum: applySpectrum,
@@ -296,7 +315,7 @@ function boot() {
       'TAP TO ADD A DROP',
       'PINCH TO CHANGE STATE',
       'SHAKE TO SHATTER',
-      'CONTROLS FOR GRAVITY AND COLOUR',
+      'TAP TO ADD \u00b7 OPEN THE PORT TO POUR',
     ]);
     haptic(12);
   });
@@ -362,8 +381,9 @@ function boot() {
 
     for (const ev of sim.drainEvents()) {
       if (ev === 'shatter') haptic([0, 26, 34, 52]);
-      else if (ev === 'merge') haptic(16);
+      else if (ev === 'drain') haptic([0, 8, 26, 8]);   // two clicks: it left
       else if (ev === 'drop') haptic(9);
+      else if (ev === 'full') ui.flashFull();           // refusal, no buzz
     }
 
     fade += (1 - fade) * Math.min(1, dt * 1.4);
@@ -405,7 +425,7 @@ function boot() {
     renderer.render(scene, camera);
 
     ui.tickHints(dt);
-    ui.updateTelemetry(sim, fpsShown, tier.toUpperCase());
+    ui.updateTelemetry(sim, fpsShown, tier.toUpperCase(), dt);
     adapt();
   }
 

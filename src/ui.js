@@ -2,6 +2,7 @@
 // and the manual gravity control used when no sensor reports.
 
 import { PAGES_URL, SAFARI_URL, IS_IOS } from './config.js';
+import { MAX_BALLS as MAX_VOLUME } from './physics.js';
 
 const MATERIALS = ['CHROME', 'CHROME/GLASS', 'GLASS', 'GLASS/OBSIDIAN', 'OBSIDIAN'];
 
@@ -70,6 +71,11 @@ export class UI {
     this.tiltWhy = document.getElementById('tilt-why');
     this.enableTilt = document.getElementById('enable-tilt');
     this.introActions = document.querySelector('.intro-actions');
+
+    this.port = document.getElementById('port');
+    this.portLabel = this.port && this.port.querySelector('.port-label');
+    this.portOpen = false;
+    this.fullFlash = 0;
 
     this.hintQueue = [];
     this.hintTimer = 0;
@@ -140,6 +146,42 @@ export class UI {
 
     root.hidden = true;
     return root;
+  }
+
+  // The port is a hole in the top wall of the cell, so the control is placed
+  // from the simulation's own geometry rather than parked at a guessed offset.
+  placePort(x, y, radius) {
+    if (!this.port) return;
+    // Drawn near true scale but capped: the real aperture is wide enough on a
+    // phone to swallow the whole top of the screen, and a control that large
+    // reads as an obstruction rather than a fitting.
+    const d = Math.min(Math.max(radius * 2, 44), 64);
+    this.port.style.left = `${x}px`;
+    this.port.style.top = `${y}px`;
+    this.port.style.setProperty('--port-size', `${d}px`);
+  }
+
+  wirePort(onToggle) {
+    if (!this.port) return;
+    // Stops the tap also registering on the canvas as a drop or a tendril pull.
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup']) {
+      this.port.addEventListener(ev, (e) => e.stopPropagation());
+    }
+    this.port.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.portOpen = !this.portOpen;
+      this.port.classList.toggle('open', this.portOpen);
+      this.port.setAttribute('aria-pressed', String(this.portOpen));
+      this.portLabel.textContent = this.portOpen ? 'OPEN' : 'SEALED';
+      this.markGesture();
+      onToggle(this.portOpen);
+    });
+  }
+
+  // Refusing to add a drop should be visible, since the alternative is a tap
+  // that appears to do nothing at all.
+  flashFull() {
+    this.fullFlash = 0.9;
   }
 
   showEscape(show) {
@@ -338,13 +380,23 @@ export class UI {
       `translate(${half + nx * (half - 10)}px, ${half + ny * (half - 10)}px)`;
   }
 
-  updateTelemetry(sim, fps, tier) {
+  updateTelemetry(sim, fps, tier, dt) {
     const m = sim.material;
     this.vMat.textContent = MATERIALS[Math.round(m * 2)] || MATERIALS[0];
     this.vTension.textContent = sim.tension.toFixed(3);
-    let n = 0;
-    for (const b of sim.balls) if (b.alive) n++;
-    this.vMass.textContent = String(n).padStart(2, '0') + ' / 16';
+
+    const n = sim.volume();
+    if (this.fullFlash > 0) {
+      this.fullFlash -= dt || 0.016;
+      this.vMass.textContent = 'FULL';
+      this.vMass.classList.add('warn');
+    } else {
+      this.vMass.textContent = String(n).padStart(2, '0') + ' / 16';
+      this.vMass.classList.remove('warn');
+    }
+    // The rule under the readout is the fill level, so the number has a shape.
+    this.vMass.style.setProperty('--fill', `${(n / MAX_VOLUME) * 100}%`);
+
     this.vFps.textContent = String(Math.round(fps)).padStart(2, '0') + ' · ' + tier;
   }
 

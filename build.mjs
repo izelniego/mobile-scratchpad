@@ -60,7 +60,7 @@ const BODY = `
   <dl class="telemetry">
     <dt>STATE</dt><dd id="v-mat">CHROME</dd>
     <dt>TENSION</dt><dd id="v-tension">0.320</dd>
-    <dt>BODIES</dt><dd id="v-mass">12 / 16</dd>
+    <dt>VOLUME</dt><dd id="v-mass">09 / 16</dd>
     <dt>RENDER</dt><dd id="v-fps">60 &middot; MID</dd>
   </dl>
 
@@ -111,6 +111,11 @@ const BODY = `
     ${escapePanel('escape-controls')}
   </div>
 </section>
+
+<button id="port" type="button" aria-pressed="false" aria-label="Drain port">
+  <span class="port-iris"></span>
+  <span class="port-label">SEALED</span>
+</button>
 
 <div id="puck" role="slider" aria-label="Gravity direction"><div id="bead"></div></div>
 

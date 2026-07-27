@@ -288,7 +288,7 @@ export class Input {
       const quick = performance.now() - this.downAt < 260;
       if (quick && !this.dragged) {
         const w = this.toWorld(p.x, p.y);
-        this.sim.dropAt(w.x, w.y);
+        this.sim.addDrop(w.x, w.y);
       }
       this.sim.clearTouch();
     } else if (this.pointers.size === 1) {

@@ -1,9 +1,19 @@
-// The metaball sim. Fourteen-odd soft bodies with cohesion, mutual repulsion
+// The metaball sim. Up to sixteen soft bodies with cohesion, mutual repulsion
 // and a container matched to the actual viewport, so the liquid pools against
 // the edges of the phone you are holding rather than some abstract box.
+//
+// Each body is one drop, so the count is the volume: drops added by tapping
+// stay, and drops that find the open port in the top wall leave for good.
 
 export const MAX_BALLS = 16;
-const CORE_BALLS = 12;
+
+// Every ball is one drop of liquid, and the number alive IS the volume. There
+// is deliberately no permanent "core": a mass that cannot be emptied is not a
+// quantity you can manage.
+const START_BALLS = 9;
+
+// The aperture in the top wall, centred on x = 0.
+export const PORT_RADIUS = 0.24;
 
 const PARKED = 900; // unused uniform slots live far away so the shader's
                     // branch-free loop still ignores them
@@ -16,8 +26,7 @@ export class Sim {
         x: 0, y: 0, z: 0,
         vx: 0, vy: 0, vz: 0,
         r: 0,
-        core: i < CORE_BALLS,
-        alive: i < CORE_BALLS,
+        alive: i < START_BALLS,
         born: 0,
       });
     }
@@ -57,13 +66,15 @@ export class Sim {
 
     this.events = [];         // drained by main for haptics
 
+    this.portOpen = false;
+
     this.reset();
   }
 
   reset() {
     for (let i = 0; i < MAX_BALLS; i++) {
       const b = this.balls[i];
-      b.alive = b.core;
+      b.alive = i < START_BALLS;
       if (!b.alive) continue;
       // Uniform inside a ball, not on its shell — seeding on a circle makes the
       // mass render as a torus with a hole through the middle.
@@ -86,12 +97,13 @@ export class Sim {
   // way liquid touches the front pane of the vessel holding it.
   resize(halfW, halfH) {
     this.hx = Math.max(halfW - 0.26, 0.26);
-    // A portrait phone is a very tall, very narrow frustum. Following it
-    // literally makes a drainpipe, and the mass just puddles off the bottom
-    // edge under a screenful of dead space. Capping the cell's aspect keeps it
-    // a vessel: the specimen sits in the lower third with air above and below,
-    // and still has real distance to travel when the phone tilts.
-    this.hy = Math.min(Math.max(halfH - 0.26, 0.50), this.hx * 2.2);
+    // Full height, so the top wall — and the port in it — sits near the top of
+    // the screen. An earlier version capped this to keep the resting pool from
+    // floating in dead space; that space now has a job, as the distance the
+    // mercury travels when tilted and the route to the drain.
+    // The margin also keeps the top wall — and the port control sitting on it —
+    // clear of the readouts along the top of the screen.
+    this.hy = Math.max(halfH - 0.48, 0.50);
     this.hz = 0.46;
   }
 
@@ -131,21 +143,27 @@ export class Sim {
     this.touch = null;
   }
 
-  // A droplet enters from in front of the mass and falls in along gravity.
-  dropAt(x, y) {
+  volume() {
+    let n = 0;
+    for (const b of this.balls) if (b.alive) n++;
+    return n;
+  }
+
+  isFull() { return this.volume() >= MAX_BALLS; }
+
+  // A drop enters from in front of the mass and falls in along gravity. It then
+  // stays: returns false only when the vessel is already full.
+  addDrop(x, y) {
     let slot = -1;
-    let oldest = Infinity;
-    for (let i = CORE_BALLS; i < MAX_BALLS; i++) {
-      const b = this.balls[i];
-      if (!b.alive) { slot = i; break; }
-      if (b.born < oldest) { oldest = b.born; slot = i; }
+    for (let i = 0; i < MAX_BALLS; i++) {
+      if (!this.balls[i].alive) { slot = i; break; }
     }
-    if (slot < 0) return;
+    if (slot < 0) { this.events.push('full'); return false; }
 
     const b = this.balls[slot];
     b.alive = true;
     b.born = this.time;
-    b.r = 0.13 + Math.random() * 0.08;
+    b.r = 0.26 + Math.random() * 0.08;
     const g = this.gravity;
     b.x = x - g.x * 0.75;
     b.y = y - g.y * 0.75;
@@ -154,6 +172,7 @@ export class Sim {
     b.vy = g.y * 3.4;
     b.vz = g.z * 3.4;
     this.events.push('drop');
+    return true;
   }
 
   shatter() {
@@ -221,6 +240,17 @@ export class Sim {
         b.vx += dx * f; b.vy += dy * f; b.vz += dz * f;
       }
 
+      // An open port draws in whatever comes near its mouth. Without this you
+      // would have to aim the pour exactly, which is not what pouring is like.
+      if (this.portOpen) {
+        const mx = 0 - b.x, my = this.hy - b.y, mz = -b.z;
+        const md = Math.hypot(mx, my, mz);
+        if (md < 0.85 && md > 1e-4) {
+          const pull = (1 - md / 0.85) * 5.5 * dt / md;
+          b.vx += mx * pull; b.vy += my * pull; b.vz += mz * pull;
+        }
+      }
+
       if (this.touch) {
         const t = this.touch;
         const tx = t.x - b.x, ty = t.y - b.y, tz = 0.1 - b.z;
@@ -279,22 +309,21 @@ export class Sim {
       if (b.x < -lx) { b.x = -lx; b.vx = Math.abs(b.vx) * rest; b.vy *= 0.9; }
       else if (b.x > lx) { b.x = lx; b.vx = -Math.abs(b.vx) * rest; b.vy *= 0.9; }
       if (b.y < -ly) { b.y = -ly; b.vy = Math.abs(b.vy) * rest; b.vx *= 0.9; }
-      else if (b.y > ly) { b.y = ly; b.vy = -Math.abs(b.vy) * rest; b.vx *= 0.9; }
+      else if (b.y > ly) {
+        // The top wall has a hole in it. Reaching it while the port is open is
+        // the only way liquid leaves, which is what makes emptying a physical
+        // act rather than a button.
+        if (this.portOpen && Math.abs(b.x) < PORT_RADIUS) {
+          b.alive = false;
+          this.events.push('drain');
+          continue;
+        }
+        b.y = ly; b.vy = -Math.abs(b.vy) * rest; b.vx *= 0.9;
+      }
       if (b.z < -lz) { b.z = -lz; b.vz = Math.abs(b.vz) * rest; }
       else if (b.z > lz) { b.z = lz; b.vz = -Math.abs(b.vz) * rest; }
 
       ke += (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz) * b.r;
-    }
-
-    // A droplet that has settled into the body stops being a droplet.
-    for (let i = CORE_BALLS; i < MAX_BALLS; i++) {
-      const b = balls[i];
-      if (!b.alive || this.time - b.born < 1.6) continue;
-      const d = Math.hypot(cx - b.x, cy - b.y, cz - b.z);
-      if (d < 0.48) {
-        b.alive = false;
-        this.events.push('merge');
-      }
     }
 
     const target = Math.min(ke * 0.020, 1);
@@ -304,6 +333,15 @@ export class Sim {
   }
 
   updateBounds() {
+    // An empty vessel has no bounding sphere. A zero radius makes the shader's
+    // ray/sphere test miss every ray, so the raymarch is skipped entirely and
+    // the cell simply renders empty — no special case needed in GLSL.
+    if (this.volume() === 0) {
+      this.boundC.x = this.boundC.y = this.boundC.z = 0;
+      this.boundR = 0;
+      return;
+    }
+
     let minX = 1e9, minY = 1e9, minZ = 1e9, maxX = -1e9, maxY = -1e9, maxZ = -1e9;
     for (let i = 0; i < MAX_BALLS; i++) {
       const b = this.balls[i];

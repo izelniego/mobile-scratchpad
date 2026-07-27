@@ -22,6 +22,26 @@ self-contained HTML file.
 | Pinch | Morphs state along one axis — chrome and taut, through dispersive glass, to loose obsidian |
 | Shake | Surface tension collapses and the mass bursts apart, then reforms |
 | Move the phone | Linear acceleration becomes inertia — shove it sideways and the liquid lags against the trailing wall |
+| Tap | Adds a drop. It stays, so the mass grows |
+| Open the port, then tilt | The hole in the top wall lets the mercury out, a bead at a time, until you seal it or the cell is empty |
+
+### Volume
+
+Every body in the simulation is one drop, so the count of them *is* the volume.
+Tapping adds one and it stays; there is no permanent core, so the vessel can be
+filled to capacity (sixteen) or emptied completely and refilled from nothing.
+At capacity a tap is refused, the readout says `FULL`, and the haptic is
+withheld — a refusal you can feel.
+
+The **port** is a real aperture in the top wall, not a button that deletes
+liquid. Nothing leaves until the mercury physically travels up to the mouth, so
+emptying means tilting the phone over and pouring, or shoving the mass into the
+hole with a finger at zero-g. Sealed, the wall is solid. Liquid near an open
+mouth gets a gentle pull toward it so pouring is not a test of aim.
+
+Capacity stays at sixteen because the shader's `map()` loop runs once per body
+and is called well over a hundred times per pixel — raising the ceiling is the
+most expensive change available and buys the least.
 
 Two controls sit behind `CONTROLS` in the footer:
 
