@@ -1,0 +1,21 @@
+{
+  "name": "mercury",
+  "version": "1.0.0",
+  "description": "Tilt-driven liquid metal, raymarched in a single fragment shader.",
+  "scripts": {
+    "build": "node build.mjs",
+    "serve": "node build.mjs && node -e \"require('http').createServer((q,s)=>{s.setHeader('content-type','text/html');require('fs').createReadStream('dist/index.html').pipe(s)}).listen(8080,()=>console.log('http://localhost:8080'))\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:41729/git/izelniego/mobile-scratchpad"
+  },
+  "devDependencies": {
+    "@fontsource/chivo-mono": "^5.3.0",
+    "esbuild": "^0.28.1",
+    "playwright": "^1.62.0",
+    "three": "^0.185.1"
+  },
+  "private": true,
+  "type": "module"
+}

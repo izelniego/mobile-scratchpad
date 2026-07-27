@@ -1,0 +1,356 @@
+/* MERCURY — the instrument around the specimen.
+   This design commits to a single dark world on purpose: the UI carries no hue
+   at all, so the only colour on screen is the light the material itself bends.
+   Theme tokens are therefore fixed rather than inverted for a light scheme. */
+
+:root {
+  --void:   #07080B;
+  --carbon: #0F1116;
+  --steel:  #262C36;
+  --quick:  #DCE3EC;
+  --mist:   #798494;
+
+  --mono: "Chivo Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+
+  --pad: 20px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--quick);
+  font-family: var(--mono);
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  background: var(--void);
+  z-index: 0;
+}
+
+#gl {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ------------------------------------------------------------------ hud */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  padding: calc(var(--safe-t) + var(--pad)) calc(var(--safe-r) + var(--pad))
+           calc(var(--safe-b) + var(--pad)) calc(var(--safe-l) + var(--pad));
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 900ms ease 200ms;
+}
+
+#hud.live { opacity: 1; }
+
+/* The specimen pools against whichever edge is down, so it regularly ends up
+   directly behind the readouts. These scrims keep the instrument legible
+   without putting a visible panel between the viewer and the material. */
+#hud::before,
+#hud::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 200px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+#hud::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(7, 8, 11, 0.82), rgba(7, 8, 11, 0));
+}
+
+#hud::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(7, 8, 11, 0.86), rgba(7, 8, 11, 0));
+}
+
+.ident { grid-column: 1; grid-row: 1; }
+
+.ident h1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.40em;
+  text-indent: 0.40em;
+  color: var(--quick);
+}
+
+.ident p {
+  margin: 5px 0 0;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: var(--mist);
+}
+
+.telemetry {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 10px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.telemetry dt { color: var(--mist); }
+
+.telemetry dd {
+  margin: 0;
+  color: var(--quick);
+  min-width: 6ch;
+}
+
+.footer {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 9px;
+  letter-spacing: 0.20em;
+  color: var(--mist);
+}
+
+.source { display: flex; align-items: center; gap: 7px; }
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mist);
+  opacity: 0.5;
+}
+
+.dot.on {
+  background: var(--quick);
+  opacity: 1;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ------------------------------------------------------------------ hints */
+
+#hint {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  color: var(--mist);
+  padding: 9px 16px;
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  background: rgba(15, 17, 22, 0.62);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 520ms ease, transform 520ms ease;
+  white-space: nowrap;
+}
+
+#hint.show { opacity: 1; transform: translateY(0); }
+
+/* ------------------------------------------------------------------ manual gravity */
+
+/* Shown only when no motion sensor ever reports — a real control, not an
+   apology for one. Drag the bead; the mass falls the way you point it. */
+#puck {
+  position: fixed;
+  right: calc(var(--safe-r) + var(--pad));
+  bottom: calc(var(--safe-b) + var(--pad) + 30px);
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 1px solid var(--steel);
+  background: rgba(15, 17, 22, 0.55);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  z-index: 3;
+  display: none;
+  touch-action: none;
+  cursor: grab;
+}
+
+#puck.on { display: block; }
+#puck:active { cursor: grabbing; }
+
+#puck::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 1px;
+  height: 1px;
+  box-shadow: 0 0 0 1px var(--steel);
+  border-radius: 50%;
+}
+
+#bead {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  border-radius: 50%;
+  background: var(--quick);
+  box-shadow: 0 0 14px rgba(220, 227, 236, 0.45);
+  will-change: transform;
+}
+
+#puck:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+/* ------------------------------------------------------------------ intro */
+
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: calc(var(--safe-t) + 28px) 32px calc(var(--safe-b) + 28px);
+  text-align: center;
+  background: radial-gradient(120% 90% at 50% 45%,
+              rgba(7, 8, 11, 0.55) 0%, rgba(7, 8, 11, 0.92) 70%);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  transition: opacity 800ms ease, backdrop-filter 800ms ease;
+}
+
+#intro.gone { opacity: 0; pointer-events: none; }
+
+.intro-mark {
+  font-size: clamp(26px, 11vw, 46px);
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  margin: 0;
+  color: var(--quick);
+}
+
+.intro-sub {
+  margin: -18px 0 0;
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--mist);
+}
+
+.intro-lede {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--mist);
+  max-width: 30ch;
+  margin: 0;
+  text-wrap: balance;
+}
+
+#begin {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  color: var(--quick);
+  background: transparent;
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 15px 30px;
+  cursor: pointer;
+  transition: border-color 300ms ease, background 300ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#begin:hover, #begin:focus-visible {
+  border-color: var(--quick);
+  background: rgba(220, 227, 236, 0.06);
+}
+
+#begin:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+.intro-note {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--mist);
+  opacity: 0.65;
+  max-width: 32ch;
+  margin: 0;
+}
+
+.intro-note a { color: var(--quick); text-decoration: underline; text-underline-offset: 3px; }
+
+#unsupported {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+  background: var(--void);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--mist);
+}
+
+#unsupported.on { display: flex; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dot.on { animation: none; }
+  #hud, #hint, #intro { transition-duration: 1ms; }
+}

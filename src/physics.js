@@ -1,0 +1,322 @@
+// The metaball sim. Fourteen-odd soft bodies with cohesion, mutual repulsion
+// and a container matched to the actual viewport, so the liquid pools against
+// the edges of the phone you are holding rather than some abstract box.
+
+export const MAX_BALLS = 16;
+const CORE_BALLS = 12;
+
+const PARKED = 900; // unused uniform slots live far away so the shader's
+                    // branch-free loop still ignores them
+
+export class Sim {
+  constructor() {
+    this.balls = [];
+    for (let i = 0; i < MAX_BALLS; i++) {
+      this.balls.push({
+        x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0,
+        r: 0,
+        core: i < CORE_BALLS,
+        alive: i < CORE_BALLS,
+        born: 0,
+      });
+    }
+
+    // Container half-extents, overwritten by resize() before the first step.
+    this.hx = 0.9;
+    this.hy = 1.5;
+    this.hz = 0.5;
+
+    this.gravity = { x: 0, y: -1, z: 0 };
+    this.gStrength = 7.4;
+
+    this.tension = 0.32;      // shader's uK
+    this.tensionTarget = 0.32;
+    this.material = 0;        // shader's uMat
+
+    this.energy = 0;
+    this.time = 0;
+
+    this.touch = null;        // {x, y, z, vx, vy, strength}
+    // Deliberately smaller than the radius of the mass. A finger that reaches
+    // the whole body just magnets it around; a finger that reaches a pocket of
+    // it pulls a tendril out and leaves the rest behind.
+    this.touchReach = 0.60;
+    this.touchForce = 30;
+    this.shatterTimer = 0;
+
+    this.boundC = { x: 0, y: 0, z: 0 };
+    this.boundR = 1;
+
+    this.events = [];         // drained by main for haptics
+
+    this.reset();
+  }
+
+  reset() {
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = this.balls[i];
+      b.alive = b.core;
+      if (!b.alive) continue;
+      // Uniform inside a ball, not on its shell — seeding on a circle makes the
+      // mass render as a torus with a hole through the middle.
+      const a = Math.random() * Math.PI * 2;
+      const e = Math.acos(2 * Math.random() - 1);
+      const rad = 0.46 * Math.cbrt(Math.random());
+      b.x = rad * Math.sin(e) * Math.cos(a);
+      b.y = rad * Math.sin(e) * Math.sin(a);
+      b.z = rad * Math.cos(e) * 0.55;
+      b.vx = b.vy = b.vz = 0;
+      // Wide radius spread is what keeps the mass lumpy rather than resolving
+      // into one featureless sphere once it settles.
+      b.r = 0.24 + 0.12 * Math.random();
+    }
+  }
+
+  // Container tracks the visible frustum, so the liquid pools against the real
+  // edges of whatever screen this is on. The margin is deliberately smaller
+  // than the surface bleed: the mass should touch the sides of the screen the
+  // way liquid touches the front pane of the vessel holding it.
+  resize(halfW, halfH) {
+    this.hx = Math.max(halfW - 0.26, 0.26);
+    // A portrait phone is a very tall, very narrow frustum. Following it
+    // literally makes a drainpipe, and the mass just puddles off the bottom
+    // edge under a screenful of dead space. Capping the cell's aspect keeps it
+    // a vessel: the specimen sits in the lower third with air above and below,
+    // and still has real distance to travel when the phone tilts.
+    this.hy = Math.min(Math.max(halfH - 0.26, 0.50), this.hx * 2.2);
+    this.hz = 0.46;
+  }
+
+  setGravity(x, y, z) {
+    const l = Math.hypot(x, y, z) || 1;
+    this.gravity.x = x / l;
+    this.gravity.y = y / l;
+    this.gravity.z = z / l;
+  }
+
+  // Pinch drives one expressive axis: chrome and taut at one end, obsidian and
+  // loose at the other. Latched, so it persists after the fingers lift.
+  setPinch(t) {
+    const k = Math.min(Math.max(t, 0), 1);
+    this.material = k * 2;
+    this.tensionTarget = 0.36 - k * 0.17;
+  }
+
+  setTouch(x, y, vx, vy, strength) {
+    this.touch = { x, y, vx, vy, strength };
+  }
+
+  clearTouch() {
+    this.touch = null;
+  }
+
+  // A droplet enters from in front of the mass and falls in along gravity.
+  dropAt(x, y) {
+    let slot = -1;
+    let oldest = Infinity;
+    for (let i = CORE_BALLS; i < MAX_BALLS; i++) {
+      const b = this.balls[i];
+      if (!b.alive) { slot = i; break; }
+      if (b.born < oldest) { oldest = b.born; slot = i; }
+    }
+    if (slot < 0) return;
+
+    const b = this.balls[slot];
+    b.alive = true;
+    b.born = this.time;
+    b.r = 0.13 + Math.random() * 0.08;
+    const g = this.gravity;
+    b.x = x - g.x * 0.75;
+    b.y = y - g.y * 0.75;
+    b.z = 0.42 - g.z * 0.4;
+    b.vx = g.x * 3.4;
+    b.vy = g.y * 3.4;
+    b.vz = g.z * 3.4;
+    this.events.push('drop');
+  }
+
+  shatter() {
+    this.shatterTimer = 1;
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = this.balls[i];
+      if (!b.alive) continue;
+      const a = Math.random() * Math.PI * 2;
+      const e = Math.acos(2 * Math.random() - 1);
+      const s = 3.6 + Math.random() * 3.4;
+      b.vx += Math.sin(e) * Math.cos(a) * s;
+      b.vy += Math.sin(e) * Math.sin(a) * s;
+      b.vz += Math.cos(e) * s * 0.5;
+    }
+    this.events.push('shatter');
+  }
+
+  step(dt) {
+    dt = Math.min(dt, 1 / 30);
+    this.time += dt;
+
+    const balls = this.balls;
+    const g = this.gravity;
+    const gs = this.gStrength;
+
+    // Shatter drops surface tension hard, then eases it back so the droplets
+    // visibly separate before the mass reels them in again.
+    if (this.shatterTimer > 0) {
+      this.shatterTimer = Math.max(0, this.shatterTimer - dt / 1.35);
+      const s = this.shatterTimer;
+      this.tension = this.tensionTarget * (1 - s * 0.70);
+    } else {
+      this.tension += (this.tensionTarget - this.tension) * Math.min(1, dt * 5);
+    }
+
+    // Centroid drives cohesion — mass-weighted so big cores lead.
+    let cx = 0, cy = 0, cz = 0, m = 0;
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = balls[i];
+      if (!b.alive) continue;
+      const w = b.r * b.r;
+      cx += b.x * w; cy += b.y * w; cz += b.z * w; m += w;
+    }
+    if (m > 0) { cx /= m; cy /= m; cz /= m; }
+
+    // Mercury's defining trait is enormous surface tension — it beads instead
+    // of spreading. Cohesion therefore outweighs gravity for shape, while
+    // gravity still decides where the bead rolls to.
+    const cohesion = 12.5;
+    const restR = 0.42;
+
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = balls[i];
+      if (!b.alive) continue;
+
+      b.vx += g.x * gs * dt;
+      b.vy += g.y * gs * dt;
+      b.vz += g.z * gs * dt;
+
+      const dx = cx - b.x, dy = cy - b.y, dz = cz - b.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d > restR) {
+        const f = cohesion * (d - restR) / d * dt;
+        b.vx += dx * f; b.vy += dy * f; b.vz += dz * f;
+      }
+
+      if (this.touch) {
+        const t = this.touch;
+        const tx = t.x - b.x, ty = t.y - b.y, tz = 0.1 - b.z;
+        const td = Math.hypot(tx, ty, tz);
+        const reach = 1.15;
+        if (td < reach && td > 1e-4) {
+          // Falloff squared so the finger grabs a local pocket of the mass and
+          // stretches it out, instead of dragging the whole body rigidly.
+          const fall = 1 - td / reach;
+          const f = t.strength * this.touchForce * fall * fall * dt / td;
+          b.vx += tx * f; b.vy += ty * f; b.vz += tz * f;
+          b.vx += t.vx * fall * 5.0 * dt;
+          b.vy += t.vy * fall * 5.0 * dt;
+        }
+      }
+    }
+
+    // Mutual repulsion — 120 pairs, trivial at this count, and it is what stops
+    // the cores collapsing into a single sphere under cohesion.
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const a = balls[i];
+      if (!a.alive) continue;
+      for (let j = i + 1; j < MAX_BALLS; j++) {
+        const b = balls[j];
+        if (!b.alive) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+        let d = Math.hypot(dx, dy, dz);
+        const min = (a.r + b.r) * 0.82;
+        if (d < min) {
+          if (d < 1e-4) { d = 1e-4; }
+          const push = (min - d) / d * 9.0 * dt;
+          a.vx -= dx * push; a.vy -= dy * push; a.vz -= dz * push;
+          b.vx += dx * push; b.vy += dy * push; b.vz += dz * push;
+        }
+      }
+    }
+
+    const damp = Math.exp(-1.35 * dt);
+    const rest = 0.34;
+    let ke = 0;
+
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = balls[i];
+      if (!b.alive) continue;
+
+      b.vx *= damp; b.vy *= damp; b.vz *= damp;
+
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.z += b.vz * dt;
+
+      const lx = this.hx - b.r * 0.55;
+      const ly = this.hy - b.r * 0.55;
+      const lz = this.hz - b.r * 0.4;
+
+      if (b.x < -lx) { b.x = -lx; b.vx = Math.abs(b.vx) * rest; b.vy *= 0.9; }
+      else if (b.x > lx) { b.x = lx; b.vx = -Math.abs(b.vx) * rest; b.vy *= 0.9; }
+      if (b.y < -ly) { b.y = -ly; b.vy = Math.abs(b.vy) * rest; b.vx *= 0.9; }
+      else if (b.y > ly) { b.y = ly; b.vy = -Math.abs(b.vy) * rest; b.vx *= 0.9; }
+      if (b.z < -lz) { b.z = -lz; b.vz = Math.abs(b.vz) * rest; }
+      else if (b.z > lz) { b.z = lz; b.vz = -Math.abs(b.vz) * rest; }
+
+      ke += (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz) * b.r;
+    }
+
+    // A droplet that has settled into the body stops being a droplet.
+    for (let i = CORE_BALLS; i < MAX_BALLS; i++) {
+      const b = balls[i];
+      if (!b.alive || this.time - b.born < 1.6) continue;
+      const d = Math.hypot(cx - b.x, cy - b.y, cz - b.z);
+      if (d < 0.48) {
+        b.alive = false;
+        this.events.push('merge');
+      }
+    }
+
+    const target = Math.min(ke * 0.020, 1);
+    this.energy += (target - this.energy) * Math.min(1, dt * (target > this.energy ? 9 : 2.2));
+
+    this.updateBounds();
+  }
+
+  updateBounds() {
+    let minX = 1e9, minY = 1e9, minZ = 1e9, maxX = -1e9, maxY = -1e9, maxZ = -1e9;
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = this.balls[i];
+      if (!b.alive) continue;
+      const e = b.r + this.tension;
+      if (b.x - e < minX) minX = b.x - e;
+      if (b.y - e < minY) minY = b.y - e;
+      if (b.z - e < minZ) minZ = b.z - e;
+      if (b.x + e > maxX) maxX = b.x + e;
+      if (b.y + e > maxY) maxY = b.y + e;
+      if (b.z + e > maxZ) maxZ = b.z + e;
+    }
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
+    this.boundC.x = cx; this.boundC.y = cy; this.boundC.z = cz;
+    this.boundR = Math.hypot(maxX - cx, maxY - cy, maxZ - cz) + 0.06;
+  }
+
+  // Pack into the shader's vec4 array. Dead slots are parked far enough out
+  // that the smooth-min in the shader cannot reach them.
+  writeUniform(arr) {
+    for (let i = 0; i < MAX_BALLS; i++) {
+      const b = this.balls[i];
+      const o = i * 4;
+      if (b.alive) {
+        arr[o] = b.x; arr[o + 1] = b.y; arr[o + 2] = b.z; arr[o + 3] = b.r;
+      } else {
+        arr[o] = PARKED; arr[o + 1] = PARKED; arr[o + 2] = PARKED; arr[o + 3] = 0;
+      }
+    }
+  }
+
+  drainEvents() {
+    const e = this.events;
+    this.events = [];
+    return e;
+  }
+}
