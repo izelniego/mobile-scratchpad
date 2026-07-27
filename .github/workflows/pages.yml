@@ -1,0 +1,44 @@
+# Deploys the built page to GitHub Pages.
+#
+# This exists because "Deploy from a branch" depends on two dropdown settings
+# that cannot be read back from outside the repository, so a 404 is impossible
+# to diagnose. `configure-pages` with enablement sets the source itself, and the
+# run then reports success or failure somewhere observable.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # enablement: true switches the Pages source to Actions if it is set to
+      # anything else, which is what makes this self-configuring.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # docs/ holds the standalone build plus .nojekyll.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
