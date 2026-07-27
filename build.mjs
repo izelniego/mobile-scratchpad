@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const out = join(root, 'dist');
+const docs = join(root, 'docs');
 
 const FONTS = [
   ['400', 'node_modules/@fontsource/chivo-mono/files/chivo-mono-latin-400-normal.woff2'],
@@ -52,9 +53,46 @@ const BODY = `
       <span class="dot" id="source-dot"></span>
       <span id="v-source">CALIBRATING</span>
     </div>
-    <div>CONTAINED</div>
+    <button id="controls-toggle" type="button" aria-expanded="false" aria-controls="controls">CONTROLS</button>
   </div>
 </div>
+
+<section id="controls" aria-label="Controls">
+  <div class="controls-head">
+    <span>CONTROLS</span>
+    <button id="controls-close" type="button" aria-label="Close controls">CLOSE</button>
+  </div>
+
+  <div class="ctl">
+    <div class="ctl-head">
+      <label for="s-gravity">GRAVITY</label>
+      <output id="v-gravity" for="s-gravity">EARTH &middot; 1.00 g</output>
+    </div>
+    <input id="s-gravity" type="range" min="0" max="2.5" step="0.01" value="1">
+    <div class="ticks"><span>0</span><span>MOON</span><span>MARS</span><span>EARTH</span><span>JUPITER</span></div>
+  </div>
+
+  <div class="ctl">
+    <div class="ctl-head">
+      <label for="s-spectrum">SPECTRUM</label>
+      <output id="v-spectrum" for="s-spectrum">NEUTRAL</output>
+    </div>
+    <input id="s-spectrum" class="hue" type="range" min="0" max="1" step="0.005" value="0">
+    <div class="ticks"><span>NEUTRAL</span><span>FULL SPECTRUM</span></div>
+  </div>
+
+  <div class="ctl ctl-tilt">
+    <div class="ctl-head">
+      <label>TILT</label>
+      <output id="v-tilt">CHECKING</output>
+    </div>
+    <p id="tilt-why"></p>
+    <div class="ctl-actions">
+      <button id="enable-tilt" type="button" hidden>ENABLE TILT</button>
+      <a id="fullscreen-link" hidden target="_blank" rel="noopener">OPEN FULL SCREEN</a>
+    </div>
+  </div>
+</section>
 
 <div id="puck" role="slider" aria-label="Gravity direction"><div id="bead"></div></div>
 
@@ -65,7 +103,10 @@ const BODY = `
     Tilt your phone and it pours. Drag it and it stretches. Pinch it and it
     changes state. Shake it and it breaks apart.
   </p>
-  <button id="begin" type="button">TAP TO BEGIN</button>
+  <div class="intro-actions">
+    <button id="begin" type="button">TAP TO BEGIN</button>
+    <a id="intro-escape" class="intro-secondary" hidden target="_blank" rel="noopener">OPEN FULL SCREEN</a>
+  </div>
   <p class="intro-note" id="intro-note" hidden></p>
 </div>
 
@@ -97,11 +138,19 @@ const run = async () => {
   const script = `<script>\n${js}\n</script>`;
 
   await mkdir(out, { recursive: true });
+  await mkdir(docs, { recursive: true });
 
   // Standalone document, for opening locally or serving anywhere.
-  await writeFile(join(out, 'index.html'),
+  const standalone =
     `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n${head}\n${style}\n</head>\n` +
-    `<body>\n${BODY}\n${script}\n</body>\n</html>\n`);
+    `<body>\n${BODY}\n${script}\n</body>\n</html>\n`;
+  await writeFile(join(out, 'index.html'), standalone);
+
+  // Same document under docs/, so GitHub Pages can serve it straight from the
+  // branch. That URL is top-level rather than framed, which is the only place
+  // the motion sensors are actually reachable.
+  await writeFile(join(docs, 'index.html'), standalone);
+  await writeFile(join(docs, '.nojekyll'), '');
 
   // Body fragment, for publishing as an Artifact — the host supplies the
   // doctype, <html>, <head> and <body> wrapper itself.
@@ -112,6 +161,7 @@ const run = async () => {
   console.log(`js ${kb(js)}  css ${kb(css)}  fonts ${kb(faces)}`);
   console.log(`dist/index.html    ${kb(await readFile(join(out, 'index.html'), 'utf8'))}`);
   console.log(`dist/artifact.html ${kb(await readFile(join(out, 'artifact.html'), 'utf8'))}`);
+  console.log(`docs/index.html    ${kb(await readFile(join(docs, 'index.html'), 'utf8'))}`);
 };
 
 run().catch((e) => { console.error(e); process.exit(1); });

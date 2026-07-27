@@ -21,6 +21,14 @@ self-contained HTML file.
 | Tap | A droplet falls in along gravity and merges into the mass |
 | Pinch | Morphs state along one axis — chrome and taut, through dispersive glass, to loose obsidian |
 | Shake | Surface tension collapses and the mass bursts apart, then reforms |
+| Move the phone | Linear acceleration becomes inertia — shove it sideways and the liquid lags against the trailing wall |
+
+Two controls sit behind `CONTROLS` in the footer:
+
+- **GRAVITY** — 0 g to 2.53 g, marked with real bodies (zero-g, Moon, Mars, Earth, Jupiter). At zero-g the mass stops falling and holds itself together by cohesion alone.
+- **SPECTRUM** — one dial from neutral through the full hue wheel. It tints the studio lights the metal reflects, not just the backdrop, so the specimen itself changes colour. The strip lights and key stay near-neutral at every setting, because that contrast is what makes the material read as polished metal at all.
+
+Both persist to `localStorage`.
 
 Merges, drops and shatters fire a haptic pulse where `navigator.vibrate` is
 supported. iOS Safari ignores it; nothing else changes.
@@ -35,6 +43,12 @@ node verify.mjs   # headless Chromium checks + screenshots into .verify/
 ```
 
 `?q=low|mid|high` pins the quality tier instead of letting it adapt.
+
+### Publishing to GitHub Pages
+
+`npm run build` writes `docs/index.html` as well. In the repository, set
+**Settings → Pages → Deploy from a branch → /docs**, and the piece is served at
+a normal top-level URL where the accelerometer works without any escape hatch.
 
 ## How it works
 
@@ -66,15 +80,38 @@ compile-time constant.
 
 ## Sensors
 
-Gravity comes from `deviceorientation`, which has a well-defined frame, rather
-than `accelerationIncludingGravity`, whose sign conventions vary by vendor.
-iOS 13+ requires `requestPermission()` inside a user gesture, which is what the
-opening screen is for.
+Two signals come off the phone. **Orientation** says which way is down and
+drives gravity; it is read from `deviceorientation`, which has a well-defined
+frame, rather than `accelerationIncludingGravity`, whose sign conventions vary
+by vendor. **Linear acceleration** says how the phone is being moved and drives
+inertia and shake detection. iOS 13+ requires `requestPermission()` inside a
+user gesture, which is what the opening screen is for.
 
-If no sensor ever reports — a refused permission, a desktop browser, or an
-embedded frame without a `gyroscope` grant — a draggable gravity control appears
-instead. It is a real control, not a fallback notice: the piece stays fully
-playable without a single sensor reading.
+### Tilt does not work in an embedded frame
+
+This is worth stating plainly, because it looks like a bug and is not one.
+Sensor access is governed by Permissions Policy, and an embed host that ships
+
+```
+permissions-policy: accelerometer=self, gyroscope=self
+```
+
+has **not** delegated those sensors to a cross-origin child frame — `self` means
+the host's own origin only. The browser blocks `deviceorientation` and
+`devicemotion` inside such a frame, and no JavaScript can work around it.
+
+claude.ai serves artifacts exactly this way, from
+`<uuid>.frame.claudeusercontent.com` inside an iframe. So when the piece detects
+it is framed it says so, and promotes an **OPEN FULL SCREEN** link as the
+primary action — the same document, opened top-level, has the sensors.
+
+Serving `docs/index.html` from GitHub Pages sidesteps the problem entirely,
+since that page is never framed.
+
+When tilt genuinely is not available — refused permission, a desktop browser, or
+a frame — the piece names the specific reason in the HUD and hands over to a
+draggable gravity control. That control is a real one, not a fallback notice:
+everything stays playable without a single sensor reading.
 
 ## Layout
 
@@ -87,8 +124,10 @@ src/shaders/mercury.frag.glsl  the raymarcher
 src/shaders/bloom.frag.glsl    bright-pass and separable blur
 src/shaders/composite.frag.glsl  bloom add, ACES, aberration, grain, vignette
 build.mjs                      bundles and inlines everything into one file
-verify.mjs                     headless checks
+verify.mjs                     45 headless checks + screenshots
 ```
 
 `dist/index.html` is a standalone document. `dist/artifact.html` is the same
 build as a body fragment, for hosts that supply their own document wrapper.
+`docs/index.html` is the standalone document again, where GitHub Pages expects
+it.

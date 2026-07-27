@@ -354,3 +354,262 @@ body {
   .dot.on { animation: none; }
   #hud, #hint, #intro { transition-duration: 1ms; }
 }
+
+/* ------------------------------------------------------------------ controls */
+
+/* The instrument is otherwise colourless by design. The one exception below is
+   the spectrum track, which shows the hue wheel — colour is that control's
+   actual subject, so withholding it would be coyness rather than restraint. */
+
+#controls-toggle {
+  pointer-events: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.20em;
+  text-indent: 0.20em;
+  color: var(--mist);
+  background: transparent;
+  border: 0;
+  padding: 4px 0 4px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#controls-toggle[aria-expanded="true"],
+#controls-toggle:hover { color: var(--quick); }
+#controls-toggle:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+#controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px calc(var(--safe-r) + var(--pad)) calc(var(--safe-b) + 26px)
+           calc(var(--safe-l) + var(--pad));
+  background: rgba(11, 13, 17, 0.90);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-top: 1px solid var(--steel);
+  touch-action: auto;
+
+  /* Tall drawers overflow a short phone in landscape, so cap and scroll. */
+  max-height: min(76vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  /* Driven purely by the class, with no display toggling and no rAF staging:
+     visibility flips instantly on open and is delayed to the end of the slide
+     on close, so the element leaves the a11y tree and the tab order without
+     needing a timer to sequence it. */
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 380ms;
+}
+
+#controls.open {
+  transform: translateY(0);
+  visibility: visible;
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+}
+
+/* The sheet covers the footer that opened it, so it carries its own way out.
+   Without this the drawer is a one-way door. */
+.controls-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: var(--mist);
+  padding-bottom: 2px;
+}
+
+#controls-close {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--quick);
+  background: transparent;
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#controls-close:hover { border-color: var(--quick); }
+#controls-close:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+.ctl { display: flex; flex-direction: column; gap: 9px; }
+
+.ctl-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+}
+
+.ctl-head label { color: var(--mist); }
+
+.ctl-head output {
+  color: var(--quick);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.16em;
+}
+
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  color: var(--mist);
+  opacity: 0.55;
+}
+
+/* Range inputs carry their own touch handling and keyboard support, which is
+   why these are real inputs rather than bespoke drag targets. */
+#controls input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
+  margin: 0;
+  background: transparent;
+  touch-action: pan-x;
+  cursor: pointer;
+}
+
+#controls input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--steel);
+}
+
+#controls input[type="range"]::-moz-range-track {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--steel);
+}
+
+#controls input[type="range"].hue::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--steel) 0 6%, #FF4D4D 6%, #FFE24D 22%,
+              #63FF7A 39%, #4DE8FF 56%, #6B6BFF 72%, #FF5DE0 88%, #FF4D4D 100%);
+}
+
+#controls input[type="range"].hue::-moz-range-track {
+  background: linear-gradient(to right, var(--steel) 0 6%, #FF4D4D 6%, #FFE24D 22%,
+              #63FF7A 39%, #4DE8FF 56%, #6B6BFF 72%, #FF5DE0 88%, #FF4D4D 100%);
+}
+
+#controls input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--quick);
+  border: 0;
+  box-shadow: 0 0 12px rgba(220, 227, 236, 0.4);
+}
+
+#controls input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--quick);
+  border: 0;
+  box-shadow: 0 0 12px rgba(220, 227, 236, 0.4);
+}
+
+#controls input[type="range"]:focus-visible { outline: 2px solid var(--quick); outline-offset: 4px; }
+
+.ctl-tilt { border-top: 1px solid var(--steel); padding-top: 20px; }
+
+#tilt-why {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--mist);
+  max-width: 46ch;
+}
+
+.ctl-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.ctl-actions button,
+.ctl-actions a {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--quick);
+  background: transparent;
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 11px 18px;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ctl-actions button:hover, .ctl-actions a:hover { border-color: var(--quick); }
+.ctl-actions :focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+/* ------------------------------------------------------------------ intro actions */
+
+.intro-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* When the page is framed the sensors are unreachable, so the escape becomes
+   the primary control and starting here becomes the quieter option. */
+.intro-actions.framed { flex-direction: column-reverse; }
+
+.intro-actions.framed #begin {
+  border-color: transparent;
+  color: var(--mist);
+  font-size: 9px;
+  padding: 8px 18px;
+}
+
+.intro-actions.framed #begin:hover { color: var(--quick); }
+
+#intro-escape {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  color: var(--quick);
+  border: 1px solid var(--steel);
+  border-radius: 999px;
+  padding: 15px 30px;
+  text-decoration: none;
+  transition: border-color 300ms ease, background 300ms ease;
+}
+
+.intro-actions.framed #intro-escape {
+  border-color: var(--quick);
+  background: rgba(220, 227, 236, 0.07);
+}
+
+#intro-escape:hover { border-color: var(--quick); }
+#intro-escape:focus-visible { outline: 2px solid var(--quick); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #controls, #controls.open { transition: none; }
+}

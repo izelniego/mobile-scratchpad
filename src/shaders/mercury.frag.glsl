@@ -17,6 +17,8 @@ uniform float uBoundR;
 uniform float uEnergy;         // 0..1 agitation, drives emissive rim
 uniform vec3  uCamPos;
 uniform float uFocal;
+uniform float uHue;            // 0..1 around the wheel
+uniform float uTint;           // 0 = the neutral studio, 1 = fully coloured
 
 varying vec2 vUv;
 
@@ -56,6 +58,19 @@ vec2 sphIntersect(vec3 ro, vec3 rd, vec3 ce, float ra) {
 
 // ---------------------------------------------------------------- environment
 
+vec3 hsv2rgb(vec3 c) {
+  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+// Pushes a light's colour toward the chosen hue while holding on to its
+// original brightness, so tinting the studio never silently dims it.
+vec3 tinted(vec3 base, vec3 hue, float amount) {
+  float lum = dot(base, vec3(0.2126, 0.7152, 0.0722));
+  return mix(base, hue * lum * 1.35, amount);
+}
+
 // Analytic studio. There is no HDRI here — the ceiling, key, rim and kicker are
 // all closed-form, which is why the whole app ships with zero assets.
 //
@@ -65,36 +80,46 @@ vec2 sphIntersect(vec3 ro, vec3 rd, vec3 ce, float ra) {
 // heads and the specimen is the only lit thing on screen.
 vec3 env(vec3 d) {
   float up = d.y * 0.5 + 0.5;
+  vec3 hue = hsv2rgb(vec3(uHue, 0.85, 1.0));
 
   // Ambient gradient, kept dim. A mirror needs contrast, not overall
   // brightness — a uniformly lit room renders chrome as flat grey fog.
-  vec3 c = mix(vec3(0.020, 0.024, 0.034), vec3(0.30, 0.34, 0.42), pow(up, 2.1));
+  vec3 c = mix(tinted(vec3(0.020, 0.024, 0.034), hue, uTint),
+               tinted(vec3(0.30, 0.34, 0.42), hue, uTint), pow(up, 2.1));
 
   // Two hard-edged strip lights. These are what actually sell polished metal:
   // the surface picks them up as crisp bright bands that shear and wrap as the
-  // mass moves, which is how a real chrome render is lit.
+  // mass moves, which is how a real chrome render is lit. They stay near-neutral
+  // at every hue — colour the strips and the material stops reading as metal.
   float strip1 = smoothstep(0.30, 0.40, d.y) * (1.0 - smoothstep(0.58, 0.70, d.y));
-  c += vec3(1.00, 0.98, 0.94) * strip1 * 2.60;
+  c += tinted(vec3(1.00, 0.98, 0.94), hue, uTint * 0.15) * strip1 * 2.60;
 
   float strip2 = smoothstep(-0.28, -0.20, d.y) * (1.0 - smoothstep(-0.06, 0.02, d.y));
-  c += vec3(0.42, 0.58, 0.92) * strip2 * 0.85;
+  c += tinted(vec3(0.42, 0.58, 0.92), hue, uTint * 0.75) * strip2 * 0.85;
 
-  // Key, with a hot core inside a broad falloff.
+  // Key, with a hot core inside a broad falloff. Also held near-neutral.
   vec3 keyDir = normalize(vec3(-0.38, 0.78, 0.50));
   float kd = max(dot(d, keyDir), 0.0);
-  c += vec3(1.00, 0.96, 0.90) * (pow(kd, 64.0) * 26.0 + pow(kd, 6.0) * 1.10);
+  c += tinted(vec3(1.00, 0.96, 0.90), hue, uTint * 0.15) *
+       (pow(kd, 64.0) * 26.0 + pow(kd, 6.0) * 1.10);
 
-  // Cool rim from behind and to the right — separates the silhouette.
+  // Rim and kicker carry most of the colour — they are the two lights whose
+  // whole job is to say something about the room the specimen sits in.
   vec3 rimDir = normalize(vec3(0.90, -0.10, -0.42));
-  c += vec3(0.24, 0.48, 1.00) * pow(max(dot(d, rimDir), 0.0), 7.0) * 2.30;
+  c += tinted(vec3(0.24, 0.48, 1.00), hue, uTint) *
+       pow(max(dot(d, rimDir), 0.0), 7.0) * 2.30;
 
-  // Warm kicker low and left, so the shadow side never goes dead.
   vec3 kickDir = normalize(vec3(-0.74, -0.44, 0.30));
-  c += vec3(1.00, 0.60, 0.32) * pow(max(dot(d, kickDir), 0.0), 9.0) * 1.05;
+  // Offset so the kicker sits opposite the rim on the wheel and the two never
+  // collapse into one flat colour.
+  vec3 kickHue = hsv2rgb(vec3(fract(uHue + 0.12), 0.85, 1.0));
+  c += tinted(vec3(1.00, 0.60, 0.32), kickHue, uTint) *
+       pow(max(dot(d, kickDir), 0.0), 9.0) * 1.05;
 
   // Horizon seam and floor falloff.
-  c += vec3(0.20, 0.24, 0.33) * pow(1.0 - abs(d.y), 26.0) * 0.85;
-  c = mix(c, vec3(0.013, 0.014, 0.020), smoothstep(0.0, -0.55, d.y) * 0.78);
+  c += tinted(vec3(0.20, 0.24, 0.33), hue, uTint) * pow(1.0 - abs(d.y), 26.0) * 0.85;
+  c = mix(c, tinted(vec3(0.013, 0.014, 0.020), hue, uTint),
+          smoothstep(0.0, -0.55, d.y) * 0.78);
   return c;
 }
 
@@ -188,9 +213,12 @@ vec3 iridescence(float cosTheta, float t) {
 
 vec3 background(vec2 uv) {
   float r = length(uv);
-  vec3 c = mix(vec3(0.036, 0.041, 0.053), vec3(0.0055, 0.0065, 0.0105),
-               smoothstep(0.0, 1.25, r));
-  return c;
+  vec3 hue = hsv2rgb(vec3(uHue, 0.85, 1.0));
+  // The backdrop takes a stronger dose than the lights: it is a wall, not a
+  // source, so saturating it costs the material nothing.
+  vec3 near = tinted(vec3(0.036, 0.041, 0.053), hue, uTint * 1.6);
+  vec3 far  = tinted(vec3(0.0055, 0.0065, 0.0105), hue, uTint * 1.6);
+  return mix(near, far, smoothstep(0.0, 1.25, r));
 }
 
 void main() {

@@ -33,8 +33,10 @@ async function settle(page, seconds = 3) {
   await page.waitForTimeout(450);
 }
 
-async function session(tag, query = '') {
-  const ctx = await browser.newContext({ ...devices['iPhone 13'], isMobile: true, hasTouch: true });
+async function session(tag, query = '', opts = {}) {
+  const ctx = await browser.newContext({
+    ...devices['iPhone 13'], isMobile: true, hasTouch: true, ...opts,
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -124,7 +126,11 @@ async function litFraction(page) {
     return out;
   });
   ok(stretch.rose > 0.5, `drag lifts a tendril (top +${stretch.rose.toFixed(2)})`);
-  ok(stretch.anchored < 0.2, `pooled mass stays anchored (base moved ${stretch.anchored.toFixed(3)})`);
+  // Relative, not absolute: ball radii and start positions are seeded randomly
+  // each load, so what matters is that the neck travels far further than the
+  // base does — that differential is what makes it a tendril and not a tow.
+  ok(stretch.rose > stretch.anchored * 3,
+     `pool stays put while the neck stretches (${stretch.rose.toFixed(2)} vs ${stretch.anchored.toFixed(2)})`);
   await page.waitForTimeout(450);
   await page.screenshot({ path: join(shots, '03-stretch.png') });
 
@@ -244,7 +250,235 @@ for (const q of ['low', 'mid', 'high']) {
   await ctx.close();
 }
 
-// --- 6. intro state ----------------------------------------------------------
+// --- 6. gravity dial ---------------------------------------------------------
+{
+  const { ctx, page } = await session('gravity-dial');
+  await page.click('#begin');
+  await page.waitForTimeout(300);
+
+  const fall = await page.evaluate(() => {
+    const { sim, advance, applyGravity } = window.__mercury;
+    // Mean downward speed shortly after release. Displacement is the wrong
+    // probe: at Jupiter the mass reaches the floor inside a second and the
+    // number saturates against the container instead of tracking gravity.
+    const drop = (g) => {
+      applyGravity(g);
+      sim.reset();
+      sim.setGravity(0, -1, 0);
+      advance(0.15);
+      const a = sim.balls.filter(b => b.alive);
+      return -a.reduce((s, b) => s + b.vy, 0) / a.length;
+    };
+    return { jupiter: drop(2.53), earth: drop(1), moon: drop(0.17), zero: drop(0) };
+  });
+
+  ok(fall.earth > fall.moon + 0.3,
+     `Moon falls slower than Earth (${fall.moon.toFixed(2)} vs ${fall.earth.toFixed(2)} u/s)`);
+  ok(fall.jupiter > fall.earth + 0.5,
+     `Jupiter falls fastest (${fall.jupiter.toFixed(2)} u/s)`);
+  ok(Math.abs(fall.zero) < 0.05, `zero-g does not fall (${fall.zero.toFixed(3)} u/s)`);
+
+  const label = await page.evaluate(() => {
+    document.getElementById('s-gravity').value = '0.17';
+    document.getElementById('s-gravity').dispatchEvent(new Event('input'));
+    return document.getElementById('v-gravity').textContent;
+  });
+  ok(label.startsWith('MOON'), `dial snaps to body names ("${label}")`);
+
+  await page.evaluate(() => window.__mercury.applyGravity(0));
+  await settle(page, 2);
+  await page.screenshot({ path: join(shots, '09-zero-g.png') });
+  await ctx.close();
+}
+
+// --- 7. phone movement drives inertia ---------------------------------------
+{
+  const { ctx, page } = await session('inertia');
+  await page.click('#begin');
+  await page.waitForTimeout(300);
+
+  const drift = await page.evaluate(() => {
+    const { sim, advance } = window.__mercury;
+    sim.setGravity(0, -1, 0);
+    advance(3);
+    const cx = () => {
+      const a = sim.balls.filter(b => b.alive);
+      return a.reduce((s, b) => s + b.x, 0) / a.length;
+    };
+    const before = cx();
+    // Phone accelerated to the right -> liquid should pile to the LEFT.
+    sim.setInertia(-9, 0, 0);
+    advance(0.6);
+    return cx() - before;
+  });
+  ok(drift < -0.05,
+     `phone movement throws the mass the opposite way (drift ${drift.toFixed(3)})`);
+  await ctx.close();
+}
+
+// --- 8. colour dial actually moves pixels ------------------------------------
+{
+  const { ctx, page } = await session('colour');
+  await page.click('#begin');
+  await page.waitForTimeout(300);
+  await settle(page, 2.5);
+
+  const hueOf = ([r, g, b]) => {
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max - min < 1e-6) return -1;
+    let h;
+    if (max === r) h = ((g - b) / (max - min)) % 6;
+    else if (max === g) h = (b - r) / (max - min) + 2;
+    else h = (r - g) / (max - min) + 4;
+    return (h * 60 + 360) % 360;
+  };
+
+  const sample = async (v) => {
+    await page.evaluate((x) => window.__mercury.applySpectrum(x), v);
+    await page.waitForTimeout(320);
+    return page.evaluate(() => window.__mercury.meanColor());
+  };
+
+  const neutral = await sample(0);
+  ok(await page.evaluate(() => window.__mercury.uniforms.uTint.value) === 0,
+     `spectrum at zero leaves the studio neutral (hue ${hueOf(neutral).toFixed(0)}deg)`);
+
+  // Each dial position should render near the hue it names. Tolerance is wide
+  // because the near-neutral strip lights and key deliberately dilute it.
+  for (const [v, expect] of [[0.08, 29], [0.33, 119], [0.55, 198], [0.80, 288]]) {
+    const c = await sample(v);
+    const got = hueOf(c);
+    let d = Math.abs(got - expect);
+    if (d > 180) d = 360 - d;
+    ok(d < 55, `hue ${Math.round(v * 360)}deg renders as ${got.toFixed(0)}deg (off by ${d.toFixed(0)}deg)`);
+  }
+
+  for (const [v, name] of [[0.08, 'red'], [0.33, 'green'], [0.55, 'cyan'], [0.80, 'violet']]) {
+    await page.evaluate((x) => window.__mercury.applySpectrum(x), v);
+    await page.waitForTimeout(380);
+    await page.screenshot({ path: join(shots, `10-hue-${name}.png`) });
+  }
+  await ctx.close();
+}
+
+// --- 9. controls drawer ------------------------------------------------------
+{
+  const { ctx, page } = await session('drawer', '', { reducedMotion: 'reduce' });
+  await page.click('#begin');
+  await page.waitForTimeout(500);
+
+  await page.click('#controls-toggle');
+  await page.waitForTimeout(500);
+  ok(await page.isVisible('#s-gravity'), 'controls drawer opens');
+  const fits = await page.evaluate(() => {
+    const r = document.getElementById('controls').getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= window.innerHeight + 1;
+  });
+  ok(fits, 'open drawer fits inside the viewport');
+
+  await page.focus('#s-gravity');
+  for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowLeft');
+  const moved = await page.evaluate(() => ({
+    scale: window.__mercury.sim.gScale,
+    value: parseFloat(document.getElementById('s-gravity').value),
+    label: document.getElementById('v-gravity').textContent,
+  }));
+  ok(moved.value < 0.8 && Math.abs(moved.scale - moved.value) < 1e-6,
+     `gravity slider drives the sim (value ${moved.value.toFixed(2)} -> gScale ${moved.scale.toFixed(2)})`);
+  ok(/g$|ZERO-G/.test(moved.label), `readout follows the dial ("${moved.label}")`);
+
+  // A drag over the sheet must not also pull a tendril out of the specimen.
+  const box = await page.locator('#s-spectrum').boundingBox();
+  await page.evaluate(() => { window.__dragSeen = false;
+    document.getElementById('gl').addEventListener('pointerdown', () => { window.__dragSeen = true; }); });
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  ok(await page.evaluate(() => window.__dragSeen) === false,
+     'slider drags do not reach the canvas as a tendril pull');
+
+  await page.screenshot({ path: join(shots, '11-controls.png') });
+
+  await page.click('#controls-close');
+  await page.waitForTimeout(600);
+  ok(!(await page.isVisible('#s-gravity')),
+     'controls drawer closes from inside the sheet, which covers the toggle');
+  await ctx.close();
+}
+
+// --- 10. framed behaviour ----------------------------------------------------
+{
+  const ctx = await browser.newContext({ ...devices['iPhone 13'], isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  // Headless Chromium exposes no motion API whatsoever, so stand in for a real
+  // phone: the API exists, and the permission request fails the way it does in
+  // a frame that was never delegated the sensor.
+  await page.addInitScript(() => {
+    window.DeviceOrientationEvent = function () {};
+    window.DeviceOrientationEvent.requestPermission =
+      () => Promise.reject(new Error('blocked by permissions policy'));
+    window.DeviceMotionEvent = function () {};
+    window.DeviceMotionEvent.requestPermission = () => Promise.reject(new Error('blocked'));
+  });
+  // A real cross-origin frame: 127.0.0.1 is a different origin to localhost.
+  await page.setContent(
+    `<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style>
+     <iframe src="http://127.0.0.1:8199/"></iframe>`,
+    { waitUntil: 'load' });
+  const frame = page.frameLocator('iframe');
+  await page.waitForTimeout(900);
+
+  ok(await frame.locator('#intro-escape').isVisible(), 'framed page surfaces the full-screen escape');
+  const framedClass = await frame.locator('.intro-actions').getAttribute('class');
+  ok(framedClass.includes('framed'), 'framed layout promotes the escape over starting here');
+  const beginText = await frame.locator('#begin').textContent();
+  ok(beginText.includes('WITHOUT TILT'), `start control is honest about it ("${beginText}")`);
+
+  await frame.locator('#begin').click();
+  await page.waitForTimeout(2300);
+  const src = await frame.locator('#v-source').textContent();
+  ok(src.includes('FRAMED'), `telemetry names the real cause ("${src}")`);
+
+  await frame.locator('#controls-toggle').click();
+  await page.waitForTimeout(500);
+  const why = await frame.locator('#tilt-why').textContent();
+  ok(why.includes('embedded'), 'controls explain why tilt is unavailable');
+  ok(await frame.locator('#fullscreen-link').isVisible(), 'controls offer the escape too');
+  await page.screenshot({ path: join(shots, '12-framed.png') });
+  await ctx.close();
+}
+
+// --- 11. sensor retry --------------------------------------------------------
+{
+  const ctx = await browser.newContext({ ...devices['iPhone 13'], isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    window.__asked = 0;
+    window.DeviceOrientationEvent = function () {};
+    window.DeviceOrientationEvent.requestPermission = () => { window.__asked++; return Promise.resolve('denied'); };
+    window.DeviceMotionEvent = function () {};
+    window.DeviceMotionEvent.requestPermission = () => Promise.resolve('denied');
+  });
+  await page.goto('http://localhost:8199/', { waitUntil: 'load' });
+  await page.waitForTimeout(400);
+  await page.click('#begin');
+  await page.waitForTimeout(2200);
+
+  await page.click('#controls-toggle');
+  await page.waitForTimeout(450);
+  ok(await page.isVisible('#enable-tilt'), 'a denied permission offers a retry');
+  const status = await page.textContent('#v-tilt');
+  ok(status === 'PERMISSION DENIED', `tilt status is specific ("${status}")`);
+
+  await page.click('#enable-tilt');
+  await page.waitForTimeout(400);
+  const asked = await page.evaluate(() => window.__asked);
+  ok(asked >= 2, `retry re-asks for permission (${asked} requests)`);
+  await ctx.close();
+}
+
+// --- 12. intro state ----------------------------------------------------------
 {
   const { ctx, page } = await session('intro');
   await page.screenshot({ path: join(shots, '00-intro.png') });

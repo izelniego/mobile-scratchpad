@@ -1,8 +1,10 @@
 // Sensors and gestures.
 //
-// Gravity comes from `deviceorientation`, which has a well-defined frame,
-// rather than `accelerationIncludingGravity`, whose sign conventions differ
-// between vendors. Motion events are still used, but only for shake.
+// Two distinct signals come off the phone. Orientation says which way is down,
+// and drives gravity; it is read from `deviceorientation`, which has a
+// well-defined frame, rather than `accelerationIncludingGravity`, whose sign
+// conventions differ between vendors. Linear acceleration says how the phone is
+// being moved, and drives inertia and shake.
 
 const DEG = Math.PI / 180;
 
@@ -16,6 +18,24 @@ export class Input {
     this.source = 'idle';             // 'sensor' | 'manual' | 'pointer' | 'idle'
     this.sensorSeen = false;
     this.permission = 'unknown';      // 'unknown' | 'granted' | 'denied' | 'unsupported'
+
+    // Why tilt is unavailable, when it is. Reported verbatim in the HUD, because
+    // "it doesn't work" is not a useful thing for the instrument to say.
+    //   framed      - cross-origin iframe without a delegated sensor permission
+    //   denied      - the OS permission prompt was refused or dismissed
+    //   unsupported - no motion API at all (most desktops)
+    //   nosignal    - permission granted but no event ever arrived
+    this.reason = 'pending';
+
+    // A cross-origin frame is only granted accelerometer/gyroscope if the
+    // embedder delegates them. claude.ai ships `accelerometer=self, gyroscope=self`,
+    // and `self` does not cover a cross-origin child — so inside the artifact
+    // frame the sensors are blocked by the browser and no code can reach them.
+    // The same document opened top-level has them.
+    this.framed = window.self !== window.top;
+
+    // Low-passed device linear acceleration, fed to the sim as inertia.
+    this.accel = { x: 0, y: 0, z: 0 };
 
     this.pointers = new Map();
     this.pinchStart = 0;
@@ -42,6 +62,7 @@ export class Input {
     const DME = window.DeviceMotionEvent;
     if (!DOE && !DME) {
       this.permission = 'unsupported';
+      this.reason = 'unsupported';
       return false;
     }
 
@@ -50,6 +71,7 @@ export class Input {
         const state = await DOE.requestPermission();
         if (state !== 'granted') {
           this.permission = 'denied';
+          this.reason = this.framed ? 'framed' : 'denied';
           return false;
         }
       }
@@ -60,6 +82,7 @@ export class Input {
       // Thrown when the call is not tied to a gesture, or when the page is
       // framed without an allow= grant. Either way: fall back, do not fail.
       this.permission = 'denied';
+      this.reason = this.framed ? 'framed' : 'denied';
       return false;
     }
 
@@ -93,6 +116,7 @@ export class Input {
 
     this.sensorSeen = true;
     this.source = 'sensor';
+    this.reason = 'ok';
     this.sim.setGravity(gx, gy, gz);
   };
 
@@ -108,9 +132,41 @@ export class Input {
         const l = Math.hypot(g.x, g.y, g.z);
         if (l > 4) {
           this.source = 'sensor';
+          this.reason = 'ok';
           this.sim.setGravity(-g.x / l, -g.y / l, -g.z / l);
         }
       }
+    }
+
+    // Linear acceleration (gravity already removed) becomes inertia. Heavily
+    // low-passed: raw accelerometer output is noisy enough that an unfiltered
+    // spike would fire the mass straight through a container wall.
+    if (e.acceleration && e.acceleration.x !== null) {
+      const la = e.acceleration;
+      this.accel.x += (la.x - this.accel.x) * 0.35;
+      this.accel.y += (la.y - this.accel.y) * 0.35;
+      this.accel.z += (la.z - this.accel.z) * 0.35;
+
+      // Device axes match the gravity derivation above, so the same screen
+      // rotation correction applies.
+      let ix = this.accel.x, iy = this.accel.y;
+      const angle = ((screen.orientation && screen.orientation.angle) || window.orientation || 0) * DEG;
+      if (angle) {
+        const c = Math.cos(-angle), sn = Math.sin(-angle);
+        const rx = ix * c - iy * sn;
+        const ry = ix * sn + iy * c;
+        ix = rx; iy = ry;
+      }
+
+      // Opposite the phone's acceleration: shove the glass right, the liquid
+      // piles against the left wall.
+      const GAIN = 1.15, CLAMP = 16;
+      let fx = -ix * GAIN, fy = -iy * GAIN, fz = -this.accel.z * GAIN;
+      const mag = Math.hypot(fx, fy, fz);
+      if (mag > CLAMP) { const k = CLAMP / mag; fx *= k; fy *= k; fz *= k; }
+      this.sim.setInertia(fx, fy, fz);
+
+      if (!this.sensorSeen && mag > 0.05) { this.source = 'sensor'; this.reason = 'ok'; }
     }
 
     const dx = a.x - this.shakeLast.x;
@@ -133,8 +189,19 @@ export class Input {
   startFallbackWatch(onFallback) {
     setTimeout(() => {
       if (!this.sensorSeen && this.source !== 'sensor') {
-        this.source = matchMedia('(pointer: coarse)').matches ? 'manual' : 'pointer';
-        onFallback(this.source);
+        // Desktop browsers define the DeviceOrientationEvent interface whether
+        // or not the machine has any sensors behind it, so the interface
+        // existing is not evidence of hardware. A coarse pointer is the better
+        // signal for "this is a device that could plausibly report motion".
+        const coarse = matchMedia('(pointer: coarse)').matches;
+        this.source = coarse ? 'manual' : 'pointer';
+        if (this.reason === 'pending' || this.reason === 'ok') {
+          this.reason = this.framed ? 'framed'
+                      : !coarse ? 'desktop'
+                      : this.permission === 'granted' ? 'nosignal'
+                      : 'unsupported';
+        }
+        onFallback(this.source, this.reason);
       }
     }, 1600);
   }
@@ -237,5 +304,14 @@ export class Input {
 
   update(dt) {
     if (this.shakeCooldown > 0) this.shakeCooldown -= dt;
+
+    // Motion events stop arriving the moment the phone is still, so inertia has
+    // to bleed off here. Without this the last shove would push forever.
+    const decay = Math.exp(-6 * dt);
+    this.accel.x *= decay;
+    this.accel.y *= decay;
+    this.accel.z *= decay;
+    const i = this.sim.inertia;
+    if (i.x || i.y || i.z) this.sim.setInertia(i.x * decay, i.y * decay, i.z * decay);
   }
 }

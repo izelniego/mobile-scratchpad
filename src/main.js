@@ -89,6 +89,8 @@ function boot() {
     uEnergy:  { value: 0 },
     uCamPos:  { value: new THREE.Vector3(0, 0, CAM_Z) },
     uFocal:   { value: FOCAL },
+    uHue:     { value: 0 },
+    uTint:    { value: 0 },
   };
 
   const mercuryCache = {};
@@ -212,18 +214,74 @@ function boot() {
     if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) { /* ignored */ } }
   }
 
-  ui.showFramedNote();
-  ui.setSource('idle');
+  // ---------------------------------------------------------------- settings
+
+  const SETTINGS_KEY = 'mercury.settings.v1';
+  const defaults = { gravity: 1, spectrum: 0.72 };
+
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return { ...defaults };
+      const v = JSON.parse(raw);
+      return {
+        gravity: Number.isFinite(v.gravity) ? Math.min(Math.max(v.gravity, 0), 2.5) : defaults.gravity,
+        spectrum: Number.isFinite(v.spectrum) ? Math.min(Math.max(v.spectrum, 0), 1) : defaults.spectrum,
+      };
+    } catch (e) {
+      return { ...defaults };
+    }
+  }
+
+  const settings = loadSettings();
+
+  function saveSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* ignored */ }
+  }
+
+  function applyGravity(g) {
+    settings.gravity = g;
+    sim.setGravityScale(g);
+    saveSettings();
+  }
+
+  // One slider spans neutral through full colour: the first sliver of travel
+  // ramps the tint in, and position doubles as hue from there on.
+  function applySpectrum(v) {
+    settings.spectrum = v;
+    mercuryUniforms.uHue.value = v;
+    mercuryUniforms.uTint.value = Math.min(Math.max((v - 0.02) / 0.05, 0), 1) * 0.85;
+    saveSettings();
+  }
+
+  async function retrySensors() {
+    const okNow = await input.requestSensors();
+    ui.setTiltStatus(okNow ? 'nosignal' : input.reason);
+    if (okNow) {
+      input.startFallbackWatch((kind, why) => ui.setSource(kind, why));
+      haptic(10);
+    }
+  }
+
+  ui.wireControls({
+    onGravity: applyGravity,
+    onSpectrum: applySpectrum,
+    onEnableTilt: retrySensors,
+  });
+  ui.applySettings(settings);
+
+  ui.setupEscape(input.framed);
+  ui.setSource('idle', 'pending');
 
   ui.onBegin(async () => {
     ui.dismissIntro();
     await input.requestSensors();
-    ui.setSource(input.permission === 'granted' ? 'sensor' : 'idle');
+    ui.setSource(input.permission === 'granted' ? 'sensor' : 'idle', input.reason);
 
     // Permission granted is not the same as events arriving — a framed page can
     // resolve granted and still never fire. Watch for silence, then hand over.
-    input.startFallbackWatch((kind) => {
-      ui.setSource(kind);
+    input.startFallbackWatch((kind, why) => {
+      ui.setSource(kind, why);
       if (kind === 'manual') {
         ui.enablePuck((x, y) => input.setManualGravity(x, y));
         ui.queueHints(['DRAG THE BEAD TO SET GRAVITY']);
@@ -236,6 +294,7 @@ function boot() {
       'TAP TO ADD A DROP',
       'PINCH TO CHANGE STATE',
       'SHAKE TO SHATTER',
+      'CONTROLS FOR GRAVITY AND COLOUR',
     ]);
     haptic(12);
   });
@@ -356,6 +415,23 @@ function boot() {
   window.__mercury = {
     sim, input, ui, setTier,
     get tier() { return tier; },
+    settings,
+    applyGravity,
+    applySpectrum,
+    uniforms: mercuryUniforms,
+
+    // Mean RGB of the raymarch pass, for asserting the colour dial actually
+    // moves pixels rather than only moving a uniform.
+    meanColor() {
+      const w = sceneRT.width, h = sceneRT.height;
+      const buf = new Uint8Array(w * h * 4);
+      renderer.readRenderTargetPixels(sceneRT, 0, 0, w, h, buf);
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < buf.length; i += 4 * 17) {
+        r += buf[i]; g += buf[i + 1]; b += buf[i + 2]; n++;
+      }
+      return [r / n, g / n, b / n];
+    },
 
     // Step the sim on a fixed clock, independent of animation-frame pacing,
     // so physics assertions do not depend on how fast the host can rasterise.

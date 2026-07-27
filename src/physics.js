@@ -28,7 +28,14 @@ export class Sim {
     this.hz = 0.5;
 
     this.gravity = { x: 0, y: -1, z: 0 };
-    this.gStrength = 7.4;
+    // 7.4 world units/s^2 is this piece's 1 g. Everything else is a multiple.
+    this.gEarth = 7.4;
+    this.gScale = 1;
+    this.gStrength = this.gEarth;
+
+    // Phone movement, as opposed to phone orientation. Liquid in a glass you
+    // shove sideways piles up on the trailing wall; this is that force.
+    this.inertia = { x: 0, y: 0, z: 0 };
 
     this.tension = 0.32;      // shader's uK
     this.tensionTarget = 0.32;
@@ -86,6 +93,19 @@ export class Sim {
     // and still has real distance to travel when the phone tilts.
     this.hy = Math.min(Math.max(halfH - 0.26, 0.50), this.hx * 2.2);
     this.hz = 0.46;
+  }
+
+  // 0 = weightless, 1 = Earth, 2.53 = Jupiter.
+  setGravityScale(g) {
+    this.gScale = Math.max(0, Math.min(g, 3));
+    this.gStrength = this.gEarth * this.gScale;
+  }
+
+  // Device linear acceleration, already gravity-excluded, in world axes.
+  setInertia(x, y, z) {
+    this.inertia.x = x;
+    this.inertia.y = y;
+    this.inertia.z = z;
   }
 
   setGravity(x, y, z) {
@@ -158,6 +178,7 @@ export class Sim {
     const balls = this.balls;
     const g = this.gravity;
     const gs = this.gStrength;
+    const inert = this.inertia;
 
     // Shatter drops surface tension hard, then eases it back so the droplets
     // visibly separate before the mass reels them in again.
@@ -189,9 +210,9 @@ export class Sim {
       const b = balls[i];
       if (!b.alive) continue;
 
-      b.vx += g.x * gs * dt;
-      b.vy += g.y * gs * dt;
-      b.vz += g.z * gs * dt;
+      b.vx += (g.x * gs + inert.x) * dt;
+      b.vy += (g.y * gs + inert.y) * dt;
+      b.vz += (g.z * gs + inert.z) * dt;
 
       const dx = cx - b.x, dy = cy - b.y, dz = cz - b.z;
       const d = Math.hypot(dx, dy, dz);

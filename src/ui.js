@@ -3,6 +3,43 @@
 
 const MATERIALS = ['CHROME', 'CHROME/GLASS', 'GLASS', 'GLASS/OBSIDIAN', 'OBSIDIAN'];
 
+// Real surface gravities, as multiples of Earth's. The dial snaps its label to
+// whichever body it is near so the number means somewhere you could stand.
+const BODIES = [
+  [0.00, 'ZERO-G'],
+  [0.17, 'MOON'],
+  [0.38, 'MARS'],
+  [0.91, 'VENUS'],
+  [1.00, 'EARTH'],
+  [2.53, 'JUPITER'],
+];
+
+function gravityLabel(g) {
+  for (const [value, name] of BODIES) {
+    if (Math.abs(g - value) < 0.035) {
+      return value === 0 ? name : `${name} \u00b7 ${g.toFixed(2)} g`;
+    }
+  }
+  return `${g.toFixed(2)} g`;
+}
+
+const TILT_COPY = {
+  ok:      ['LIVE', ''],
+  framed:  ['BLOCKED BY FRAME',
+            'This page is embedded, and an embedded page is not granted the motion ' +
+            'sensors. Open it full screen and tilt works immediately.'],
+  denied:  ['PERMISSION DENIED',
+            'Motion access was refused or the prompt was dismissed. Tap enable to ask again.'],
+  nosignal:['NO SIGNAL',
+            'Permission was granted but no motion events have arrived. Tap enable to retry.'],
+  unsupported: ['NO SENSOR',
+            'This device reports no motion sensors. Drag the bead to set gravity by hand.'],
+  desktop: ['NO SENSOR \u00b7 DESKTOP',
+            'Desktops have no accelerometer. Move the pointer to steer gravity instead, ' +
+            'or open this on a phone to tilt it.'],
+  pending: ['CHECKING', ''],
+};
+
 export class UI {
   constructor() {
     this.intro = document.getElementById('intro');
@@ -20,6 +57,20 @@ export class UI {
     this.vSource = document.getElementById('v-source');
     this.sourceDot = document.getElementById('source-dot');
 
+    this.controls = document.getElementById('controls');
+    this.controlsToggle = document.getElementById('controls-toggle');
+    this.controlsClose = document.getElementById('controls-close');
+    this.sGravity = document.getElementById('s-gravity');
+    this.vGravity = document.getElementById('v-gravity');
+    this.sSpectrum = document.getElementById('s-spectrum');
+    this.vSpectrum = document.getElementById('v-spectrum');
+    this.vTilt = document.getElementById('v-tilt');
+    this.tiltWhy = document.getElementById('tilt-why');
+    this.enableTilt = document.getElementById('enable-tilt');
+    this.fullscreenLink = document.getElementById('fullscreen-link');
+    this.introEscape = document.getElementById('intro-escape');
+    this.introActions = document.querySelector('.intro-actions');
+
     this.hintQueue = [];
     this.hintTimer = 0;
     this.hintActive = false;
@@ -29,13 +80,22 @@ export class UI {
     this.onManual = null;
   }
 
-  // Framed pages cannot reach the motion sensors unless the embedder granted
-  // it, so offer the top-level URL rather than silently losing the best part.
-  showFramedNote() {
-    if (window.self === window.top) return;
-    this.note.innerHTML =
-      'Open <a href="' + location.href + '" target="_blank" rel="noopener">full screen</a> ' +
-      'for tilt control.';
+  // A framed page cannot reach the motion sensors at all, so the escape becomes
+  // the headline action rather than a footnote. Inside the frame location.href
+  // is already this document's own URL, and the host only intercepts
+  // cross-origin anchor clicks, so this link opens top-level untouched.
+  setupEscape(framed) {
+    const href = location.href;
+    this.framed = framed;
+    this.introEscape.href = href;
+    this.fullscreenLink.href = href;
+    if (!framed) return;
+
+    this.introEscape.hidden = false;
+    this.introActions.classList.add('framed');
+    this.begin.textContent = 'CONTINUE WITHOUT TILT';
+    this.note.textContent =
+      'Embedded pages are not granted motion sensors. Full screen restores tilt.';
     this.note.hidden = false;
   }
 
@@ -86,15 +146,85 @@ export class UI {
     this.hint.classList.remove('show');
   }
 
-  setSource(kind) {
+  setSource(kind, reason) {
+    // Inside a frame the sensors are unreachable whatever else is also true,
+    // and that is the fact worth reporting.
+    if (this.framed && kind !== 'sensor') reason = 'framed';
     const labels = {
       sensor: 'MOTION SENSOR',
       manual: 'MANUAL VECTOR',
       pointer: 'POINTER VECTOR',
       idle: 'CALIBRATING',
     };
-    this.vSource.textContent = labels[kind] || kind.toUpperCase();
-    this.sourceDot.classList.toggle('on', kind === 'sensor');
+    const live = kind === 'sensor';
+    this.vSource.textContent =
+      live ? labels.sensor
+           : (reason === 'framed' ? 'TILT BLOCKED \u00b7 FRAMED' : labels[kind] || kind.toUpperCase());
+    this.sourceDot.classList.toggle('on', live);
+    this.setTiltStatus(live ? 'ok' : (reason || 'pending'));
+  }
+
+  setTiltStatus(reason) {
+    const [status, why] = TILT_COPY[reason] || TILT_COPY.pending;
+    this.vTilt.textContent = status;
+    this.tiltWhy.textContent = why;
+    this.tiltWhy.hidden = !why;
+    // Retry is only meaningful where a permission could still be granted.
+    // Retry only where a permission could still be granted. Offering it on a
+    // machine with no sensors would just be a button that does nothing.
+    this.enableTilt.hidden = !(reason === 'denied' || reason === 'nosignal');
+    // Going full screen fixes tilt for any framed failure, not just the one we
+    // managed to identify as framing, so offer it whenever we are in a frame.
+    this.fullscreenLink.hidden = !(this.framed || reason === 'framed');
+  }
+
+  // ------------------------------------------------------------------ drawer
+
+  wireControls({ onGravity, onSpectrum, onEnableTilt }) {
+    // Synchronous: the class is the single source of truth for open state, so
+    // there is nothing to race and nothing that needs a frame to settle.
+    const setOpen = (open) => {
+      this.controls.classList.toggle('open', open);
+      this.controlsToggle.setAttribute('aria-expanded', String(open));
+      this.markGesture();
+    };
+    const isOpen = () => this.controls.classList.contains('open');
+
+    this.controlsToggle.addEventListener('click', () => setOpen(!isOpen()));
+    this.controlsClose.addEventListener('click', () => setOpen(false));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen()) setOpen(false);
+    });
+
+    // The canvas listens for pointer drags anywhere; without this, sliding a
+    // slider would also pull a tendril out of the specimen underneath.
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup']) {
+      this.controls.addEventListener(ev, (e) => e.stopPropagation());
+    }
+
+    const gravity = () => {
+      const g = parseFloat(this.sGravity.value);
+      this.vGravity.textContent = gravityLabel(g);
+      onGravity(g);
+    };
+    this.sGravity.addEventListener('input', gravity);
+
+    const spectrum = () => {
+      const v = parseFloat(this.sSpectrum.value);
+      this.vSpectrum.textContent =
+        v < 0.02 ? 'NEUTRAL' : `${Math.round(v * 360)}\u00b0`;
+      onSpectrum(v);
+    };
+    this.sSpectrum.addEventListener('input', spectrum);
+
+    this.enableTilt.addEventListener('click', onEnableTilt);
+
+    this.applySettings = ({ gravity: g, spectrum: sp }) => {
+      this.sGravity.value = String(g);
+      this.sSpectrum.value = String(sp);
+      gravity();
+      spectrum();
+    };
   }
 
   enablePuck(onManual) {
