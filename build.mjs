@@ -163,11 +163,15 @@ const run = async () => {
     `<body>\n${BODY}\n${script}\n</body>\n</html>\n`;
   await writeFile(join(out, 'index.html'), standalone);
 
-  // Same document under docs/, so GitHub Pages can serve it straight from the
-  // branch. That URL is top-level rather than framed, which is the only place
-  // the motion sensors are actually reachable.
+  // The same document in both places GitHub Pages will look. Its branch
+  // picker defaults to the default branch and only offers "/ (root)" or
+  // "/docs", so writing both means every combination serves the piece and
+  // there is no setting left to get wrong. That URL is top-level rather than
+  // framed, which is the only place the motion sensors are reachable at all.
   await writeFile(join(docs, 'index.html'), standalone);
   await writeFile(join(docs, '.nojekyll'), '');
+  await writeFile(join(root, 'index.html'), standalone);
+  await writeFile(join(root, '.nojekyll'), '');
 
   // Body fragment, for publishing as an Artifact — the host supplies the
   // doctype, <html>, <head> and <body> wrapper itself.
@@ -179,6 +183,7 @@ const run = async () => {
   console.log(`dist/index.html    ${kb(await readFile(join(out, 'index.html'), 'utf8'))}`);
   console.log(`dist/artifact.html ${kb(await readFile(join(out, 'artifact.html'), 'utf8'))}`);
   console.log(`docs/index.html    ${kb(await readFile(join(docs, 'index.html'), 'utf8'))}`);
+  console.log(`index.html         ${kb(await readFile(join(root, 'index.html'), 'utf8'))}`);
 };
 
 run().catch((e) => { console.error(e); process.exit(1); });
